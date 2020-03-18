@@ -1,29 +1,50 @@
 import fetch from 'isomorphic-unfetch';
 import { NextPage } from 'next';
-import { useEffect, useState } from 'react';
+import { Reducer, useEffect, useReducer } from 'react';
 import { Layout } from '../components/layout';
 import { TmpTmp } from '../types';
 
+type DataStateAction<T> =
+  | { type: 'request' }
+  | { type: 'success', result: T }
+  | { type: 'failure', error: Error };
+
+type DataState<T> =
+  | { isLoading: true, error: undefined, data: undefined }
+  | { isLoading: false, error: Error, data: undefined }
+  | { isLoading: false, error: undefined, data: T }
+
+function dataStateReducer<T>(prevState: DataState<T>, action: DataStateAction<T>): DataState<T> {
+  switch (action.type) {
+    case 'request':
+      return { isLoading: true, error: undefined, data: undefined }
+    case 'success':
+      return { isLoading: false, error: undefined, data: action.result }
+    case 'failure':
+      return { isLoading: false, error: action.error, data: undefined }
+  }
+}
+
 const GamePage: NextPage = () => {
-  const [tmpData, setTmpData] = useState<TmpTmp[]>()
-  const [err, setErr] = useState<string>()
+  const [tmpDataState, dispatchTmpDataState] = useReducer<Reducer<DataState<TmpTmp[]>, DataStateAction<TmpTmp[]>>>(dataStateReducer, { isLoading: true, error: undefined, data: undefined })
 
   useEffect(() => {
     let cancelled = false
 
     const fetchTmpTmp = async () => {
       try {
+        dispatchTmpDataState({ type: 'request' })
         const res = await fetch(`${process.env.API_BASE_URL}/api/tmp`)
         if (!res.ok) {
           throw new Error(`/api/tmp error: ${res.statusText} (${res.status})`)
         }
         const tmptmp = await res.json()
         if (!cancelled) {
-          setTmpData(tmptmp.tmptmp)
+          dispatchTmpDataState({ type: 'success', result: tmptmp.tmptmp })
         }
       } catch (e) {
         if (!cancelled) {
-          setErr(e.message)
+          dispatchTmpDataState({ type: 'failure', error: e })
         }
       }
     }
@@ -35,16 +56,16 @@ const GamePage: NextPage = () => {
   }, [])
 
   const renderBody = () => {
-    if (err !== undefined) {
-      return <p>ERROR: {err}</p>
-    } else if (tmpData === undefined) {
+    if (tmpDataState.isLoading) {
       return <p>Loading...</p>
-    } else if (tmpData.length === 0) {
+    } else if (tmpDataState.error) {
+      return <p>ERROR: {tmpDataState.error.message}</p>
+    } else if (tmpDataState.data.length === 0) {
       return <p>No results</p>
     }
     return (
       <ol>
-        {tmpData.map(t => (
+        {tmpDataState.data.map(t => (
           <li key={t.id}>{t.id} - {t.tmp}</li>
         ))}
       </ol>
