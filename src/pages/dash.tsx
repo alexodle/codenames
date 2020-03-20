@@ -1,8 +1,8 @@
 import { NextPage } from "next";
-import { SyntheticEvent, useState, useEffect } from "react";
-import { Layout } from "../components/layout";
+import { SyntheticEvent, useEffect } from "react";
+import { Layout } from "../components/Layout";
 import { GetMeResult, GetMyGamesResult, PostGameResult } from "../types/api";
-import { createDataFetcher, useDataFetcher, useDataFetchers, DataFetcher, createDataSender } from "../util/dataFetcher";
+import { createDataFetcher, createDataSender, useDataFetcher, useDataFetchers } from "../util/dataFetcher";
 
 const MY_URL = `${process.env.BASE_URL}/dash`
 

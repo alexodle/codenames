@@ -1,6 +1,7 @@
 import { InvalidRequestError } from "../util/errors"
 
 export type Team = '1' | '2'
+export const TEAMS: Team[] = ['1', '2']
 export const asTeam = (team: string | string[]): Team => {
   if (team !== '1' && team !== '2') throw new InvalidRequestError(`invalid team: ${team}`)
   return team as Team
@@ -15,6 +16,10 @@ export const asPlayerType = (playerType: string | string[]): PlayerType => {
 }
 
 export type CoverType = Team | 'assassin' | 'citizen'
+
+export type SpecCardSide = 'front' | 'back'
+
+export type CellType = 'citizen' | 'agent' | 'assassin'
 
 export interface Auth0User {
   sub: string
@@ -72,4 +77,16 @@ export interface Game extends GameInfo {
   currentTurn?: GameTurn
   scores: GameScore[]
   board: GameBoardCell[]
+}
+
+export interface SpecCardCell {
+  spec_card_id: number
+  side: SpecCardSide
+  row: number
+  col: number
+  cell_type: CellType
+}
+
+export interface TeamBoardSpec {
+  specCardCells: SpecCardCell[]
 }

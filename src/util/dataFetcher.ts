@@ -3,10 +3,12 @@ import { InvalidSessionError } from "./errors"
 
 export type DataFetcher<R> = () => Promise<R>
 
-export type DataState<R> =
-  | { isLoading: boolean, error: undefined, data: undefined, completed: false }
-  | { isLoading: false, error: Error, data: undefined, completed: true }
-  | { isLoading: false, error: undefined, data: R, completed: true }
+export interface DataState<R> {
+  isLoading: boolean
+  completed: boolean
+  error?: Error
+  data?: R | undefined
+}
 
 const AUTH_ERRORS = [401, 402, 403]
 
@@ -55,7 +57,7 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
     const fetchData = async () => {
       if (!fetchers.length) return
       try {
-        setState({ isLoading: true, error: undefined, data: undefined, completed: false })
+        setState({ ...state, isLoading: true, error: undefined, completed: false })
         const datas = await Promise.all(fetchers.map(f => f()))
         if (!cancelled) {
           setState({ isLoading: false, error: undefined, data: datas, completed: true })
@@ -66,7 +68,7 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
             window.location.href = `/api/auth/login?redirect=${encodeURI(srcURL)}`
             return
           }
-          setState({ isLoading: false, error: e, data: undefined, completed: true })
+          setState({ ...state, isLoading: false, error: e, completed: true })
         }
       }
     }

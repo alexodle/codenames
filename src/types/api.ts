@@ -1,4 +1,4 @@
-import { Player, PlayerType, Team, GameInfo, Game } from "./model";
+import { Player, PlayerType, Team, GameInfo, Game, TeamBoardSpec } from "./model";
 
 export interface GetMeResult {
   player: Player
@@ -23,4 +23,8 @@ export interface PostGameResult {
 export interface PutPlayerRequest {
   playerType: PlayerType
   team: Team
+}
+
+export interface GetGamePlayerViewRequest {
+  teamBoardSpec: TeamBoardSpec
 }
