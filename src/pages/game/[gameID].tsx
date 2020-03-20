@@ -17,17 +17,19 @@ const useRouterState = (): [number, string, boolean] => {
 }
 
 interface ChoiceButtonProps {
-  game: GameInfo
+  isLoading: boolean
   team: Team
   playerType: PlayerType
   player?: GamePlayer
 }
-const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ game, team, playerType, player }) => {
+const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ isLoading, team, playerType, player }) => {
   const [gameID, myURL] = useRouterState()
   const [updateState, setFetchers] = useDataFetchers(myURL, [], false)
 
+  isLoading = isLoading || updateState.isLoading
+
   const onClick = async () => {
-    if (updateState.isLoading) return
+    if (isLoading) return
     setFetchers([createDataSender<{}, PutPlayerRequest>(`${process.env.API_BASE_URL}/api/game/${gameID}/player`, 'PUT', {
       playerType,
       team,
@@ -39,9 +41,9 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ game, team, player
       <span className='player-type'>
         {playerType === 'codemaster' ? 'CODEMASTER' : 'GUESSER'}
       </span>
-      {!player && !updateState.isLoading ? undefined : (
+      {!player && !isLoading ? undefined : (
         <span className='player'>
-          {updateState.isLoading ? '...' : player!.player!.name}
+          {isLoading ? '...' : player!.player!.name}
         </span>
       )}
       <style jsx>{`
@@ -63,25 +65,28 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ game, team, player
 }
 
 interface GameSetupProps {
-  game: GameInfo
+  game?: GameInfo
+  isLoading: boolean
 }
-const GameSetup: FunctionComponent<GameSetupProps> = ({ game }) => {
+const GameSetup: FunctionComponent<GameSetupProps> = ({ game, isLoading }) => {
   const playersByPosition: { [key: string]: GamePlayer | undefined } = {}
-  game.players.forEach(gp => {
-    playersByPosition[`${gp.team}:${gp.player_type}`] = gp
-  })
+  if (!isLoading) {
+    game!.players.forEach(gp => {
+      playersByPosition[`${gp.team}:${gp.player_type}`] = gp
+    })
+  }
 
   return (
     <div className='game-setup-container'>
       <div className='team'>
         <h2>Blue Team</h2>
-        <ChoiceButton game={game} team='1' playerType='codemaster' player={playersByPosition['1:codemaster']} />
-        <ChoiceButton game={game} team='1' playerType='guesser' player={playersByPosition['1:guesser']} />
+        <ChoiceButton isLoading={isLoading} team='1' playerType='codemaster' player={playersByPosition['1:codemaster']} />
+        <ChoiceButton isLoading={isLoading} team='1' playerType='guesser' player={playersByPosition['1:guesser']} />
       </div>
       <div className='team'>
         <h2>Red Team</h2>
-        <ChoiceButton game={game} team='2' playerType='codemaster' player={playersByPosition['2:codemaster']} />
-        <ChoiceButton game={game} team='2' playerType='guesser' player={playersByPosition['2:guesser']} />
+        <ChoiceButton isLoading={isLoading} team='2' playerType='codemaster' player={playersByPosition['2:codemaster']} />
+        <ChoiceButton isLoading={isLoading} team='2' playerType='guesser' player={playersByPosition['2:guesser']} />
       </div>
       <style jsx>{`
       `}</style>
@@ -99,19 +104,13 @@ const GameSetupPage: NextPage = () => {
     }
   }, [gameID])
 
-  const renderBody = () => {
-    if (gameState.error) {
-      return <p>ERROR: {gameState.error.message}</p>
-    } else if (gameState.isLoading || !isReady) {
-      return <p>Loading...</p>
-    }
-    return <GameSetup game={gameState.data.game} />
-  }
-
   return (
     <Layout>
       <h1>Game setup</h1>
-      {renderBody()}
+      {gameState.error ? (
+        <p>ERROR: {gameState.error}</p>
+      ) : undefined}
+      <GameSetup game={gameState.data ? gameState.data.game : undefined} isLoading={gameState.isLoading} />
     </Layout>
   )
 }
