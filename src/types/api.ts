@@ -1,4 +1,4 @@
-import { Player, PlayerType, Team, GameInfo, ActiveGame } from "./model";
+import { Player, PlayerType, Team, GameInfo, Game } from "./model";
 
 export interface GetMeResult {
   player: Player
@@ -12,8 +12,8 @@ export interface GetGameInfoResult {
   game: GameInfo
 }
 
-export interface GetActiveGameResult {
-  game: ActiveGame
+export interface GetGameResult {
+  game: Game
 }
 
 export interface PostGameResult {

@@ -1,10 +1,12 @@
-import { Pool, QueryResult } from 'pg'
+import { Pool, QueryResult, PoolClient } from 'pg'
 
 const pool = new Pool()
 
 export interface Client {
   query<R>(text: string, values: any): Promise<QueryResult<R>>
 }
+
+export const getRawClient = async (): Promise<PoolClient> => await pool.connect()
 
 export const query = async <R>(text: string, values: any): Promise<QueryResult<R>> => {
   return pool.query(text, values)

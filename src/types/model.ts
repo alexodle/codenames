@@ -67,15 +67,9 @@ export interface GameInfo {
   players: GamePlayer[]
 }
 
-export interface ActiveGame {
-  id: number
-  is_started: true
-  created_by_player_id: number
-  current_turn_num: number
-  game_type: GameType
-  winning_team?: Team
-  currentTurn: GameTurn
-  players: GamePlayer[]
+export interface Game extends GameInfo {
+  current_turn_num?: number
+  currentTurn?: GameTurn
   scores: GameScore[]
   board: GameBoardCell[]
 }

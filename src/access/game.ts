@@ -1,6 +1,7 @@
 import { query, withTransaction } from "../db"
-import { ActiveGame, GameBoardCell, GameInfo, GamePlayer, GameScore, GameTurn, Player, PlayerType, Team } from "../types/model"
-import { NotFoundError, InvalidRequestError } from "../util/errors"
+import { Game, GameBoardCell, GameInfo, GamePlayer, GameScore, GameTurn, Player, PlayerType, Team } from "../types/model"
+import { NotFoundError } from "../util/errors"
+import { isNullOrUndefined } from "util"
 
 export const createGame = async (player: Player): Promise<number> => {
   const result = await query('INSERT INTO game(created_by_player_id) VALUES($1) RETURNING id;', [player.id,])
@@ -9,9 +10,10 @@ export const createGame = async (player: Player): Promise<number> => {
 
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   const result = await query(`
-    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
+    SELECT id, created_by_player_id, game_type, winning_team
     FROM game
-    WHERE id = $1;`, [gameID])
+    WHERE id = $1
+    LIMIT 1;`, [gameID])
   if (!result.rows.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
   }
@@ -24,25 +26,23 @@ export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   return game
 }
 
-export const getActiveGame = async (gameID: number): Promise<ActiveGame> => {
+export const getGame = async (gameID: number): Promise<Game> => {
   const result = await query(`
     SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
     FROM game
-    WHERE id = $1;`, [gameID])
+    WHERE id = $1
+    LIMIT 1;`, [gameID])
   if (!result.rows.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
   }
-  const game = result.rows[0] as ActiveGame
-  if (!game.game_type) {
-    throw new InvalidRequestError(`Game is not active: ${gameID}`)
-  }
-  game.is_started = true
+  const game = result.rows[0] as Game
+  game.is_started = !!game.game_type
 
   const [players, scores, board, currentTurn] = await Promise.all([
     getGamePlayers(gameID),
     getGameScores(gameID),
     getGameBoard(gameID),
-    getCurrentTurn(gameID, game.current_turn_num)])
+    !isNullOrUndefined(game.current_turn_num) ? getCurrentTurn(gameID, game.current_turn_num) : undefined])
 
   game.players = players
   game.scores = scores
@@ -54,14 +54,13 @@ export const getActiveGame = async (gameID: number): Promise<ActiveGame> => {
 
 export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
   const result = await query(`
-    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
+    SELECT id, created_by_player_id, game_type, winning_team
     FROM game
     WHERE
-      game_type IS NOT NULL AND
-      winning_team IS NULL AND
-      created_by_player_id = $1;
+      created_by_player_id = $1 AND
+      winning_team IS NULL;
     `, [playerID])
-  result.rows.forEach((r: any) => { r.is_started = true })
+  result.rows.forEach((r: any) => { r.is_started = !!r.game_type })
   return result.rows as GameInfo[]
 }
 
@@ -73,6 +72,8 @@ export const addPlayerToGame = async (gameID: number, playerID: number, team: Te
     }
     client.query(`INSERT INTO game_player(game_id, player_id, team, player_type) VALUES($1, $2, $3, $4);`, [gameID, playerID, team, playerType])
   })
+  // TODO: rely on postgres triggers
+  query(`NOTIFY gameChange, '${gameID}';`, [])
 }
 
 const getCurrentTurn = async (gameID: number, turnNum: number): Promise<GameTurn> => {

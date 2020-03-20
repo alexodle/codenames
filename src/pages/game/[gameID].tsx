@@ -1,10 +1,11 @@
 import { NextPage } from "next";
 import { useRouter } from 'next/router';
 import { FunctionComponent, useEffect } from "react";
+import socketIO from 'socket.io-client';
 import { Layout } from "../../components/layout";
 import { GetGameInfoResult, PutPlayerRequest } from "../../types/api";
 import { GameInfo, GamePlayer, PlayerType, Team } from "../../types/model";
-import { createDataFetcher, createDataSender, useDataFetcher, useDataFetchers, DataFetcher } from "../../util/dataFetcher";
+import { createDataFetcher, createDataSender, DataFetcher, useDataFetcher, useDataFetchers } from "../../util/dataFetcher";
 
 const useRouterState = (): [number, string] | [-1, ''] => {
   const router = useRouter()
@@ -20,16 +21,10 @@ interface ChoiceButtonProps {
   team: Team
   playerType: PlayerType
   player?: GamePlayer
-  onChange: () => void
 }
-const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ isLoading, team, playerType, player, onChange }) => {
+const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ isLoading, team, playerType, player }) => {
   const [gameID, myURL] = useRouterState()
   const [updateState, setFetchers] = useDataFetchers(myURL, [], false)
-  useEffect(() => {
-    if (updateState.completed) {
-      onChange()
-    }
-  }, [updateState.completed])
 
   isLoading = isLoading || updateState.isLoading
 
@@ -72,9 +67,8 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ isLoading, team, p
 interface GameSetupProps {
   isLoading: boolean
   game?: GameInfo
-  onChange: () => void
 }
-const GameSetup: FunctionComponent<GameSetupProps> = ({ game, isLoading, onChange }) => {
+const GameSetup: FunctionComponent<GameSetupProps> = ({ game, isLoading }) => {
   const playersByPosition: { [key: string]: GamePlayer | undefined } = {}
   if (!isLoading) {
     game!.players.forEach(gp => {
@@ -86,13 +80,13 @@ const GameSetup: FunctionComponent<GameSetupProps> = ({ game, isLoading, onChang
     <div className='game-setup-container'>
       <div className='team'>
         <h2>Blue Team</h2>
-        <ChoiceButton isLoading={isLoading} team='1' playerType='codemaster' player={playersByPosition['1:codemaster']} onChange={onChange} />
-        <ChoiceButton isLoading={isLoading} team='1' playerType='guesser' player={playersByPosition['1:guesser']} onChange={onChange} />
+        <ChoiceButton isLoading={isLoading} team='1' playerType='codemaster' player={playersByPosition['1:codemaster']} />
+        <ChoiceButton isLoading={isLoading} team='1' playerType='guesser' player={playersByPosition['1:guesser']} />
       </div>
       <div className='team'>
         <h2>Red Team</h2>
-        <ChoiceButton isLoading={isLoading} team='2' playerType='codemaster' player={playersByPosition['2:codemaster']} onChange={onChange} />
-        <ChoiceButton isLoading={isLoading} team='2' playerType='guesser' player={playersByPosition['2:guesser']} onChange={onChange} />
+        <ChoiceButton isLoading={isLoading} team='2' playerType='codemaster' player={playersByPosition['2:codemaster']} />
+        <ChoiceButton isLoading={isLoading} team='2' playerType='guesser' player={playersByPosition['2:guesser']} />
       </div>
       <style jsx>{`
       `}</style>
@@ -102,9 +96,9 @@ const GameSetup: FunctionComponent<GameSetupProps> = ({ game, isLoading, onChang
 
 const GameSetupPage: NextPage = () => {
   const [gameID, myURL] = useRouterState()
-  const createGameFetcher = (): DataFetcher<GetGameInfoResult> => (
+
+  const createGameFetcher = (): DataFetcher<GetGameInfoResult> =>
     createDataFetcher<GetGameInfoResult>(`${process.env.API_BASE_URL}/api/game/${gameID}`)
-  )
 
   const [gameState, setFetcher] = useDataFetcher<GetGameInfoResult>(myURL, undefined, true)
   useEffect(() => {
@@ -113,20 +107,27 @@ const GameSetupPage: NextPage = () => {
     }
   }, [gameID])
 
+  useEffect(() => {
+    if (gameID) {
+      const io = socketIO(`${process.env.SOCKET_BASE_URL}/game/${gameID}`, { path: '/socket' })
+      io.on('gameChange', () => {
+        setFetcher(createGameFetcher())
+      })
+      return () => {
+        io.close()
+      }
+    }
+  }, [gameID])
+
   return (
     <Layout>
       <h1>Game setup</h1>
       {gameState.error ? (
-        <p>ERROR: {gameState.error}</p>
+        <p>ERROR: {gameState.error.message}</p>
       ) : undefined}
       <GameSetup
         game={gameState.data ? gameState.data.game : undefined}
         isLoading={gameState.isLoading}
-        onChange={() => {
-          if (!gameState.isLoading) {
-            setFetcher(createGameFetcher())
-          }
-        }}
       />
     </Layout>
   )

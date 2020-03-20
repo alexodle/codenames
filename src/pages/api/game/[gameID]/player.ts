@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next"
-import { addPlayerToGame } from "../../../../access/gameMgmt"
+import { addPlayerToGame } from "../../../../access/game"
 import { asPlayerType, asTeam } from '../../../../types/model'
 import { auth } from "../../../../util/auth"
 import { createRequestHandler } from "../../../../util/requestHandler"
