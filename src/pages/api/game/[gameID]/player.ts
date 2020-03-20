@@ -9,7 +9,8 @@ import { getGameID } from "../[gameID]"
 const putPlayerAPI = async (req: NextApiRequest, res: NextApiResponse) => {
   const gameID = getGameID(req)
   const player = await getPlayer(req)
-  await addPlayerToGame(gameID, player.id, asTeam(req.query.team), asPlayerType(req.query.playerType))
+  await addPlayerToGame(gameID, player.id, asTeam(req.body.team), asPlayerType(req.body.playerType))
+  res.status(201).end()
 }
 
 export default createRequestHandler({

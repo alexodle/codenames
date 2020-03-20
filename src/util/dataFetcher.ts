@@ -44,17 +44,15 @@ export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT', 
   }
 }
 
-export function useDataFetcher<R>(srcURL: string, fetcher: DataFetcher<R> | undefined): DataState<R> {
-  const state = useDataFetchers(srcURL, fetcher ? [fetcher] : [])
-  return state.data === undefined ? state : { isLoading: false, error: undefined, data: state.data[0] }
+export function useDataFetcher<R>(srcURL: string, initialFetcher: DataFetcher<R> | undefined, initialIsLoading: boolean): [DataState<R>, (fetcher: DataFetcher<R> | undefined) => void] {
+  const [state, setFetchers] = useDataFetchers(srcURL, initialFetcher ? [initialFetcher] : [], initialIsLoading)
+  const myState = state.data === undefined ? state : { isLoading: false, error: undefined, data: state.data[0] }
+  return [myState as DataState<R>, (fetcher: DataFetcher<R> | undefined) => setFetchers(fetcher ? [fetcher] : [])]
 }
 
-export function useDataFetchers<R>(srcURL: string, fetchers: [DataFetcher<R>]): DataState1<R>;
-export function useDataFetchers<R1, R2>(srcURL: string, fetchers: [DataFetcher<R1>, DataFetcher<R2>]): DataState2<R1, R2>;
-export function useDataFetchers<R1, R2, R3>(srcURL: string, fetchers: [DataFetcher<R1>, DataFetcher<R2>, DataFetcher<R3>]): DataState3<R1, R2, R3>
-export function useDataFetchers<R>(srcURL: string, fetcher: DataFetcher<R>[]): DataState0<R>
-export function useDataFetchers(srcURL: string, fetchers: DataFetcher<any>[]): DataState<any> {
-  const [state, setState] = useState<DataState<any>>({ isLoading: fetchers.length > 0, error: undefined, data: undefined })
+export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any>[], initialIsLoading: boolean = true): [DataState<any>, (fetchers: DataFetcher<any>[]) => void] {
+  const [fetchers, setFetchers] = useState<DataFetcher<any>[]>(initialFetchers)
+  const [state, setState] = useState<DataState<any>>({ isLoading: initialIsLoading, error: undefined, data: undefined })
 
   useEffect(() => {
     let cancelled = false
@@ -82,7 +80,7 @@ export function useDataFetchers(srcURL: string, fetchers: DataFetcher<any>[]): D
     return () => {
       cancelled = true
     }
-  }, [fetchers.length])
+  }, [fetchers])
 
-  return state
+  return [state, setFetchers]
 }
