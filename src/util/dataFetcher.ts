@@ -3,15 +3,10 @@ import { InvalidSessionError } from "./errors"
 
 export type DataFetcher<R> = () => Promise<R>
 
-export type LoadingState =
-  | { isLoading: true, error: undefined, data: undefined }
-  | { isLoading: false, error: Error, data: undefined }
-
-export type DataState<R> = LoadingState | { isLoading: false, error: undefined, data: R }
-export type DataState0<R> = LoadingState | { isLoading: false, error: undefined, data: R[] }
-export type DataState1<R1> = LoadingState | { isLoading: false, error: undefined, data: [R1] }
-export type DataState2<R1, R2> = LoadingState | { isLoading: false, error: undefined, data: [R1, R2] }
-export type DataState3<R1, R2, R3> = LoadingState | { isLoading: false, error: undefined, data: [R1, R2, R3] }
+export type DataState<R> =
+  | { isLoading: boolean, error: undefined, data: undefined, completed: false }
+  | { isLoading: false, error: Error, data: undefined, completed: true }
+  | { isLoading: false, error: undefined, data: R, completed: true }
 
 const AUTH_ERRORS = [401, 402, 403]
 
@@ -52,7 +47,7 @@ export function useDataFetcher<R>(srcURL: string, initialFetcher: DataFetcher<R>
 
 export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any>[], initialIsLoading: boolean = true): [DataState<any>, (fetchers: DataFetcher<any>[]) => void] {
   const [fetchers, setFetchers] = useState<DataFetcher<any>[]>(initialFetchers)
-  const [state, setState] = useState<DataState<any>>({ isLoading: initialIsLoading, error: undefined, data: undefined })
+  const [state, setState] = useState<DataState<any>>({ isLoading: initialIsLoading, error: undefined, data: undefined, completed: false })
 
   useEffect(() => {
     let cancelled = false
@@ -60,10 +55,10 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
     const fetchData = async () => {
       if (!fetchers.length) return
       try {
-        setState({ isLoading: true, error: undefined, data: undefined })
+        setState({ isLoading: true, error: undefined, data: undefined, completed: false })
         const datas = await Promise.all(fetchers.map(f => f()))
         if (!cancelled) {
-          setState({ isLoading: false, error: undefined, data: datas })
+          setState({ isLoading: false, error: undefined, data: datas, completed: true })
         }
       } catch (e) {
         if (!cancelled) {
@@ -71,7 +66,7 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
             window.location.href = `/api/auth/login?redirect=${encodeURI(srcURL)}`
             return
           }
-          setState({ isLoading: false, error: e, data: undefined })
+          setState({ isLoading: false, error: e, data: undefined, completed: true })
         }
       }
     }

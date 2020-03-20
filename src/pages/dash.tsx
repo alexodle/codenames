@@ -24,7 +24,6 @@ const DashPage: NextPage<DashPageProps> = () => {
   const newGame = (ev: SyntheticEvent) => {
     ev.preventDefault()
     setCreateGameFetcher(createDataSender<PostGameResult, {}>(`${process.env.API_BASE_URL}/api/game`, 'POST', {}))
-    debugger
   }
 
   const renderBody = () => {
