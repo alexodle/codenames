@@ -76,7 +76,8 @@ def seed_cards(conn):
     except psycopg2.errors.UniqueViolation:
       pass
 
+
 if __name__ == '__main__':
   conn = connect()
-  #seed_words(conn)
+  seed_words(conn)
   seed_cards(conn)
