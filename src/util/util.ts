@@ -1,4 +1,5 @@
-import { GamePlayer, Game } from "../types/model"
+import { GamePlayer, Game, Team } from "../types/model"
+import { ROWS, COLS } from "./constants"
 
 export const keyBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T } => {
   const d: { [key: string]: T } = {}
@@ -28,3 +29,9 @@ export const playersByPosition = (players: GamePlayer[]): [GamePlayer | undefine
   const guessers2 = groups['2:guesser'] || []
   return [codemaster1, codemaster2, guessers1, guessers2]
 }
+
+export const getOtherTeam = (team: Team): Team => team === '1' ? '2' : '1'
+
+export const getCellKey = (cell: { row: number, col: number }): string => `${cell.row}:${cell.col}`
+
+export const getCellIdx = (cell: { row: number, col: number }): number => cell.row * ROWS + cell.col % COLS

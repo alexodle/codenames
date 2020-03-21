@@ -1,8 +1,90 @@
-import { FunctionComponent } from "react";
-import { Game, Player, GamePlayer, SpecCardCell, CellType } from "../types/model";
-import { useDataFetcher, createDataFetcher } from "../util/dataFetcher";
-import { GetGamePlayerViewRequest } from "../types/api";
-import { groupBy, keyBy } from "../util/util";
+import { FunctionComponent, SyntheticEvent, useState } from "react";
+import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest } from "../types/api";
+import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
+import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
+import { keyBy } from "../util/util";
+
+const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
+
+const cellKey = (c: { row: number, col: number }): string => `${c.row}:${c.col}`
+
+interface CodeMasterHintInputViewProps {
+  game: Game
+  myURL: string
+}
+const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = ({ game, myURL }) => {
+  const [setHintState, setFetcher] = useDataFetcher(myURL, undefined, false)
+
+  const [hint, setHint] = useState('')
+  const [hintNum, setHintNum] = useState('1')
+
+  const submitHint = (ev: SyntheticEvent) => {
+    ev.preventDefault()
+    setFetcher(createDataSender<{}, PutHintRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}}/hint`, 'PUT', {
+      turnNum: game.current_turn_num!,
+      hint,
+      hintNum: parseInt(hintNum, 10),
+    }))
+  }
+
+  return (
+    <div className='codemaster-input'>
+      <label htmlFor='hint'>
+        Hint: <input id='hint' name='hint' placeholder='Hint' value={hint} onChange={ev => setHint(ev.target.value)} disabled={setHintState.isLoading} />
+      </label>
+      <label htmlFor='hintNum'>
+        Amount: <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={setHintState.isLoading}>
+          {HINT_NUM_RANGE.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </label>
+      <button type='submit' onClick={submitHint} disabled={!hint.length || setHintState.isLoading}>Submit hint</button>
+      <style jsx>
+        {`
+          input, select, button {
+            font-size: 130%;
+            border: 1px solid gray;
+            border-radius: 5px;
+            width: 100%;
+            padding: 10px;
+          }
+          label {
+            display: block;
+            margin-bottom: 20px;
+            margin-top: 20px;
+          }
+          button {
+            cursor: pointer;
+          }
+        `}
+      </style>
+    </div>
+  )
+}
+
+interface SpectatorViewProps {
+  currentTurn: GameTurn
+}
+const SpectatorView: FunctionComponent<SpectatorViewProps> = ({ currentTurn }) => (
+  <div className='spectator-view'>
+    <h2>Hint:</h2>
+    {currentTurn.hint_word ? (
+      <p>
+        <span className='hint'>{currentTurn.hint_word}</span>
+        {' '}<span className='hint-num'>{currentTurn.hint_num}</span>
+      </p>
+    ) : undefined}
+    {!currentTurn.hint_word ? (
+      <p>Waiting...</p>
+    ) : undefined}
+    <style jsx>
+      {`
+        .hint {
+          font-weight: bold;
+        }
+      `}
+    </style>
+  </div>
+)
 
 export interface GamePlayProps {
   game: Game
@@ -10,18 +92,31 @@ export interface GamePlayProps {
   myPlayer: Player
 }
 
-const cellKey = (c: { row: number, col: number }): string => `${c.row}:${c.col}`
-
 export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlayer }) => {
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
 
   const isCodeMaster = myGamePlayer.player_type === 'codemaster'
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
-  const [codemasterState] = useDataFetcher(myURL, codemasterDataFetcher, isCodeMaster)
+  const [codemasterViewState] = useDataFetcher(myURL, codemasterDataFetcher, isCodeMaster)
 
   let cellTypes: { [key: string]: SpecCardCell }
-  if (codemasterState.data) {
-    cellTypes = keyBy(codemasterState.data.teamBoardSpec.specCardCells, cellKey)
+  if (codemasterViewState.data) {
+    cellTypes = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, cellKey)
+  }
+
+  const currentTurn = game.currentTurn!
+  const isMyTurn = myGamePlayer.team === game.currentTurn!.team
+  const isGuessing = ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
+
+  const [guessState, setGuessFetcher] = useDataFetcher(myURL, undefined, false)
+  const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
+    ev.preventDefault()
+    setGuessFetcher(createDataSender<{}, PutGuessRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/guess`, 'PUT', {
+      turnNum: currentTurn.turn_num,
+      guessNum: currentTurn.guesses.length,
+      row: cell.row,
+      col: cell.col,
+    }))
   }
 
   return (
@@ -31,10 +126,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
         {game.board.map(cell => {
           const key = cellKey(cell)
           const cellType = cellTypes && cellTypes[key]
+          const clickable = !guessState.isLoading && isGuessing && !cell.covered
           return (
             <li
               key={key}
-              className={`board-cell ${codemasterState.isLoading ? 'codemaster-loading' : ''}`}
+              className={`board-cell ${clickable ? 'clickable' : ''} ${codemasterViewState.isLoading ? 'codemaster-loading' : ''}`}
+              onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
             >
               {cellType && cellType.cell_type !== 'citizen' ? <span className={`cell-type ${cellType.cell_type || ''}`} /> : undefined}
               <span className='cell-word'>{cell.word}</span>
@@ -42,6 +139,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           )
         })}
       </ol>
+      <hr />
+      {isCodeMaster && isMyTurn && !currentTurn.hint_word ?
+        <CodeMasterHintInputView game={game} myURL={myURL} /> :
+        <SpectatorView currentTurn={currentTurn} />
+      }
       <style jsx>
         {`
           .board {

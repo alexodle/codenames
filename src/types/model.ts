@@ -41,12 +41,6 @@ export interface GamePlayer {
   player?: Player
 }
 
-export interface GameScore {
-  game_id: number
-  team: Team
-  score: number
-}
-
 export interface GameBoardCell {
   game_id: number
   row: number
@@ -61,21 +55,29 @@ export interface GameTurn {
   team: Team
   hint_word?: string
   hint_num?: number
+  guesses: Guess[]
+}
+
+export interface Guess {
+  game_id: number
+  turn_num: number
+  guess_num: number
+  row: number
+  col: number
 }
 
 export interface GameInfo {
   id: number
   is_started: boolean
   created_by_player_id: number
+  current_turn_num?: number
   game_type?: GameType
   winning_team?: Team
   players: GamePlayer[]
 }
 
 export interface Game extends GameInfo {
-  current_turn_num?: number
   currentTurn?: GameTurn
-  scores: GameScore[]
   board: GameBoardCell[]
 }
 
@@ -88,5 +90,43 @@ export interface SpecCardCell {
 }
 
 export interface TeamBoardSpec {
+  team: Team
+  spec_card_id: number
+  spec_card_side: SpecCardSide
   specCardCells: SpecCardCell[]
+}
+
+export type GameEvent = GuessEvent | CellCoverEvent | PassEvent | NextTurnEvent | GameOverEvent;
+
+export type GuessEvent = {
+  type: 'guess'
+  turnNum: number
+  guessNum: number
+  row: number
+  col: number
+}
+
+export type CellCoverEvent = {
+  type: 'cover'
+  turnNum: number
+  row: number
+  col: number
+  newCover: CoverType
+}
+
+export type PassEvent = {
+  type: 'pass'
+  turnNum: number
+}
+
+export type NextTurnEvent = {
+  type: 'nextturn'
+  nextTeam: Team
+  nextTurnNum: number
+}
+
+export type GameOverEvent = {
+  type: 'gameover'
+  turnNum: number
+  winner?: Team
 }

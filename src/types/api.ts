@@ -28,3 +28,16 @@ export interface PutPlayerRequest {
 export interface GetGamePlayerViewRequest {
   teamBoardSpec: TeamBoardSpec
 }
+
+export interface PutHintRequest {
+  turnNum: number
+  hint: string
+  hintNum: number
+}
+
+export interface PutGuessRequest {
+  turnNum: number
+  guessNum: number
+  row: number
+  col: number
+}

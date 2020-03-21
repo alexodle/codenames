@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next"
-import { addPlayerToGame, getGamePlayers, getTeamBoardSpec } from "../../../../access/game"
+import { addPlayerToGame, getGamePlayers } from "../../../../access/gamemgmt"
+import { getTeamBoardSpec } from "../../../../access/gameplay"
 import { GetGamePlayerViewRequest } from "../../../../types/api"
 import { asPlayerType, asTeam } from '../../../../types/model'
 import { auth } from "../../../../util/auth"
@@ -15,7 +16,7 @@ const putPlayerAPI = async (req: NextApiRequest, res: NextApiResponse) => {
   res.status(201).end()
 }
 
-const getPlayerViewAPI = async (req: NextApiRequest, res: NextApiResponse) => {
+export const getPlayerViewAPI = async (req: NextApiRequest, res: NextApiResponse) => {
   const gameID = getGameID(req)
   const [player, gamePlayers] = await Promise.all([getPlayer(req), getGamePlayers(gameID)])
 

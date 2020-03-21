@@ -17,6 +17,10 @@ export const Layout: FunctionComponent = ({ children }) => (
     body * {
       box-sizing: border-box;
     }
+
+    .clickable {
+      cursor: pointer;
+    }
     `}</style>
   </div>
 )

@@ -27,18 +27,14 @@ export function createRequestHandler(spec: HandlerSpec): HandlerFunc {
       await methodHandler(req, res)
     } catch (e) {
       if (e instanceof NotFoundError) {
-        res.status(NotFoundErrorStatus).json({ error: 'not found' })
+        res.status(NotFoundErrorStatus).json({ error: e.message || 'not found' })
       } else if (e instanceof InvalidRequestError) {
-        res.status(InvalidRequestErrorStatus).json({ error: 'invalid request' })
+        res.status(InvalidRequestErrorStatus).json({ error: e.message || 'invalid request' })
       } else if (e instanceof InvalidSessionError || e.code === 'invalid_session') {
         res.status(InvalidSessionErrorStatus).json({ error: 'invalid session' })
       } else {
         console.error(e.stack)
-        if (process.env.NODE_ENV !== 'production') {
-          res.status(e.status || 500).end(e.message)
-        } else {
-          res.status(e.status || 500).end()
-        }
+        res.status(e.status || 500).end(e.message || 'error')
       }
     }
   }

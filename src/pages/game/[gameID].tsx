@@ -40,7 +40,9 @@ const GameSetupPage: NextPage = () => {
         setFetcher(createGameFetcher())
       })
       return () => {
-        io.close()
+        try {
+          io.close()
+        } catch (e) { }
       }
     }
   }, [gameID])
@@ -48,6 +50,7 @@ const GameSetupPage: NextPage = () => {
   const isStarted = gameState.data?.game.is_started
   return (
     <Layout>
+      {myPlayerState.data ? <p>Player: {myPlayerState.data.player.sub} ({myPlayerState.data.player.id})</p> : undefined}
       {gameState.error ? (
         <p>ERROR: {gameState.error.message}</p>
       ) : undefined}

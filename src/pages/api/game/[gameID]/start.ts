@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next"
-import { getGameInfo, startGame } from "../../../../access/game"
+import { getGameInfo, startGame } from "../../../../access/gamemgmt"
 import { auth } from "../../../../util/auth"
 import { InvalidRequestError } from "../../../../util/errors"
 import { createRequestHandler } from "../../../../util/requestHandler"

@@ -1,10 +1,11 @@
-import { random, sampleSize, sample, shuffle } from "lodash"
+import { random, sample, sampleSize, shuffle } from "lodash"
 import { isNullOrUndefined } from "util"
 import { query, withTransaction } from "../db"
-import { Game, GameBoardCell, GameInfo, GamePlayer, GameScore, GameTurn, GameType, Player, PlayerType, Team, SpecCardSide, TEAMS, TeamBoardSpec, SpecCardCell } from "../types/model"
+import { Game, GameBoardCell, GameInfo, GamePlayer, GameTurn, GameType, Guess, Player, PlayerType, SpecCardSide, Team, TEAMS } from "../types/model"
 import { COLS, ROWS } from "../util/constants"
 import { InvalidRequestError, NotFoundError } from "../util/errors"
 import { playersByPosition } from "../util/util"
+import { ensureUpdated } from "./util"
 
 export const createGame = async (player: Player): Promise<number> => {
   const result = await query('INSERT INTO game(created_by_player_id) VALUES($1) RETURNING id;', [player.id,])
@@ -13,7 +14,7 @@ export const createGame = async (player: Player): Promise<number> => {
 
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   const result = await query(`
-    SELECT id, created_by_player_id, game_type, winning_team
+    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
     FROM game
     WHERE id = $1
     LIMIT 1;`, [gameID])
@@ -41,14 +42,12 @@ export const getGame = async (gameID: number): Promise<Game> => {
   const game = result.rows[0] as Game
   game.is_started = !!game.game_type
 
-  const [players, scores, board, currentTurn] = await Promise.all([
+  const [players, board, currentTurn] = await Promise.all([
     getGamePlayers(gameID),
-    getGameScores(gameID),
     getGameBoard(gameID),
-    !isNullOrUndefined(game.current_turn_num) ? getCurrentTurn(gameID, game.current_turn_num) : undefined])
+    !isNullOrUndefined(game.current_turn_num) ? getTurn(gameID, game.current_turn_num) : undefined])
 
   game.players = players
-  game.scores = scores
   game.board = board
   game.currentTurn = currentTurn
 
@@ -56,37 +55,15 @@ export const getGame = async (gameID: number): Promise<Game> => {
 }
 
 export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
-  const result = await query(`
+  const result = await query<GameInfo>(`
     SELECT id, created_by_player_id, game_type, winning_team
     FROM game
     WHERE
       created_by_player_id = $1 AND
       winning_team IS NULL;
     `, [playerID])
-  result.rows.forEach((r: any) => { r.is_started = !!r.game_type })
-  return result.rows as GameInfo[]
-}
-
-export const getTeamBoardSpec = async (gameID: number, team: Team): Promise<TeamBoardSpec> => {
-  const teamSpecResult = await query<{ spec_card_id: number, spec_card_side: SpecCardSide }>(`
-    SELECT spec_card_id, spec_card_side
-    FROM team_board_spec
-    WHERE game_id = $1 AND team = $2
-    LIMIT 1;
-    `, [gameID, team])
-  if (!teamSpecResult.rows.length) {
-    throw new NotFoundError(`Team board spec not found for gameID:${gameID}, team:${team}`)
-  }
-  const teamSpecCard = teamSpecResult.rows[0]
-  const result = await query<SpecCardCell>(`
-    SELECT row, col, cell_type
-    FROM spec_card_cell
-    WHERE spec_card_id = $1 AND side = $2;
-    `, [teamSpecCard.spec_card_id, teamSpecCard.spec_card_side])
-  if (!result.rows.length) {
-    throw new NotFoundError(`Team board spec cells not found for gameID:${gameID}, team:${team}`)
-  }
-  return { specCardCells: result.rows }
+  result.rows.forEach(r => { r.is_started = !!r.game_type })
+  return result.rows
 }
 
 export const getGamePlayers = async (gameID: number): Promise<GamePlayer[]> => {
@@ -127,36 +104,31 @@ export const startGame = async (gameID: number) => {
   const teamSides = { '1': sides[0], '2': sides[1] }
 
   await withTransaction(async client => {
-    let result = await client.query(`
+    ensureUpdated('Game already started', await client.query(`
       UPDATE game
       SET current_turn_num = 1, game_type = $2
       WHERE id = $1 AND game_type IS NULL;
-      `, [gameID, gameType])
-    if (result.rowCount !== 1) {
-      throw new InvalidRequestError('Concurrent game start requests')
-    }
+      `, [gameID, gameType]))
 
     for (let i = 0; i < cards.length; i++) {
       const row = Math.floor(i / ROWS)
       const col = i % COLS
-      console.log(`hihi.row:${row}, col:${col}`)
-      await client.query(`
+      ensureUpdated('Failed to create board', await client.query(`
         INSERT INTO game_board_cell(game_id, row, col, word)
         VALUES($1, $2, $3, $4)
-        `, [gameID, row, col, cards[i]])
+        `, [gameID, row, col, cards[i]]))
     }
 
-    await client.query(`
+    ensureUpdated('Failed to create turn', await client.query(`
       INSERT INTO game_turn(game_id, turn_num, team)
       VALUES($1, $2, $3);
-      `, [gameID, 1, firstTeam])
+      `, [gameID, 1, firstTeam]))
 
     for (const team of TEAMS) {
-      await client.query(`
+      ensureUpdated('Failed to create team board', await client.query(`
         INSERT INTO team_board_spec(game_id, team, spec_card_id, spec_card_side)
         VALUES($1, $2, $3, $4);
-        `, [gameID, team, specCardID, teamSides[team]])
-      await client.query(`INSERT INTO game_score(game_id, team) VALUES($1, $2) `, [gameID, team])
+        `, [gameID, team, specCardID, teamSides[team]]))
     }
   })
   // TODO: rely on postgres triggers
@@ -164,6 +136,7 @@ export const startGame = async (gameID: number) => {
 }
 
 export const addPlayerToGame = async (gameID: number, playerID: number, team: Team, playerType: PlayerType) => {
+  // TODO: ensure game hasn't started yet
   await withTransaction(async client => {
     client.query(`DELETE FROM game_player WHERE game_id = $1 AND player_id = $2;`, [gameID, playerID])
     if (playerType === 'codemaster') {
@@ -175,19 +148,8 @@ export const addPlayerToGame = async (gameID: number, playerID: number, team: Te
   query(`NOTIFY gameChange, '${gameID}';`, [])
 }
 
-const selectRandomSpecCardID = async (): Promise<number> => {
-  const allCardsResult = await query<{ id: number }>(`SELECT id FROM spec_card;`, [])
-  const i = random(allCardsResult.rows.length - 1)
-  return allCardsResult.rows[i].id
-}
-
-const selectRandomCards = async (): Promise<string[]> => {
-  const result = await query(`SELECT word FROM word_card;`, [])
-  return shuffle(sampleSize(result.rows, ROWS * COLS).map((r: any) => r.word))
-}
-
-const getCurrentTurn = async (gameID: number, turnNum: number): Promise<GameTurn> => {
-  const result = await query(`
+export const getTurn = async (gameID: number, turnNum: number): Promise<GameTurn> => {
+  const result = await query<GameTurn>(`
     SELECT game_id, turn_num, team, hint_word, hint_num
     FROM game_turn
     WHERE game_id = $1 AND turn_num = $2
@@ -195,15 +157,36 @@ const getCurrentTurn = async (gameID: number, turnNum: number): Promise<GameTurn
   if (!result.rows.length) {
     throw new NotFoundError(`Current turn not found for gameID:${gameID}, turnNum:${turnNum}`)
   }
-  return result.rows[0] as GameTurn
+  const turn = result.rows[0]
+
+  const guessesResult = await query<Guess>(`
+    SELECT game_id, turn_num, guess_num, row, col
+    FROM game_turn_guesses
+    WHERE game_id = $1 AND turn_num = $2
+    ORDER BY guess_num ASC;
+    `, [gameID, turnNum])
+  turn.guesses = guessesResult.rows
+
+  return result.rows[0]
 }
 
-const getGameBoard = async (gameID: number): Promise<GameBoardCell[]> => {
-  const result = await query(`SELECT game_id, row, col, word, covered FROM game_board_cell WHERE game_id = $1;`, [gameID])
-  return result.rows as GameBoardCell[]
+export const getGameBoard = async (gameID: number): Promise<GameBoardCell[]> => {
+  const result = await query<GameBoardCell>(`
+    SELECT game_id, row, col, word, covered
+    FROM game_board_cell
+    WHERE game_id = $1
+    ORDER BY row ASC, col ASC;
+    `, [gameID])
+  return result.rows
 }
 
-const getGameScores = async (gameID: number): Promise<GameScore[]> => {
-  const result = await query(`SELECT game_id, team, score FROM game_score WHERE game_id = $1;`, [gameID])
-  return result.rows as GameScore[]
+const selectRandomSpecCardID = async (): Promise<number> => {
+  const allCardsResult = await query<{ id: number }>(`SELECT id FROM spec_card;`, [])
+  const i = random(allCardsResult.rows.length - 1)
+  return allCardsResult.rows[i].id
+}
+
+const selectRandomCards = async (): Promise<string[]> => {
+  const result = await query<{ word: string }>(`SELECT word FROM word_card;`, [])
+  return shuffle(sampleSize(result.rows, ROWS * COLS).map(r => r.word))
 }

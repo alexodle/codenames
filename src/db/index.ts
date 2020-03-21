@@ -8,8 +8,8 @@ export interface Client {
 
 export const getRawClient = async (): Promise<PoolClient> => await pool.connect()
 
-export const query = async <R>(text: string, values: any): Promise<QueryResult<R>> => {
-  return pool.query(text, values)
+export const query = async <R>(text: string, values: any, client?: Client): Promise<QueryResult<R>> => {
+  return await (client ? client.query(text, values) : pool.query(text, values))
 }
 
 export const withTransaction = async (cb: (client: Client) => Promise<void>) => {

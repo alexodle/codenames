@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { auth } from "../../util/auth";
 import { createRequestHandler } from "../../util/requestHandler";
 import { getPlayer } from "./me";
-import { createGame } from '../../access/game'
+import { createGame } from '../../access/gamemgmt'
 import { PostGameResult } from "../../types/api";
 
 const createGameAPI = async (req: NextApiRequest, res: NextApiResponse) => {

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getInProgressGameInfosByPlayer } from "../../../access/game";
+import { getInProgressGameInfosByPlayer } from "../../../access/gamemgmt";
 import { GetMyGamesResult } from "../../../types/api";
 import { auth } from "../../../util/auth";
 import { createRequestHandler } from "../../../util/requestHandler";
