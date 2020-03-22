@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { addPlayerToGame, getGamePlayers } from "../../../../access/gamemgmt"
 import { getTeamBoardSpec } from "../../../../access/gameplay"
-import { GetGamePlayerViewRequest } from "../../../../types/api"
+import { GetGamePlayerViewRequest, PutPlayerRequest } from "../../../../types/api"
 import { asPlayerType, asTeam } from '../../../../types/model'
 import { auth } from "../../../../util/auth"
 import { InvalidRequestError } from "../../../../util/errors"
@@ -10,9 +10,19 @@ import { getPlayer } from "../../me"
 import { getGameID } from "../[gameID]"
 
 const putPlayerAPI = async (req: NextApiRequest, res: NextApiResponse) => {
+  const body: PutPlayerRequest = req.body
+  const team = asTeam(body.team)
+  const playerType = asPlayerType(body.playerType)
+
   const gameID = getGameID(req)
-  const player = await getPlayer(req)
-  await addPlayerToGame(gameID, player.id, asTeam(req.body.team), asPlayerType(req.body.playerType))
+  const [player, gamePlayers] = await Promise.all([getPlayer(req), getGamePlayers(gameID)])
+
+  const existingPlayer = gamePlayers.find(gp => gp.team === team && gp.player_type === playerType)
+  if (existingPlayer) {
+    throw new InvalidRequestError('Cannot select occupied position')
+  }
+
+  await addPlayerToGame(gameID, player.id, team, playerType)
   res.status(201).end()
 }
 

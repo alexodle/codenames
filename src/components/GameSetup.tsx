@@ -18,7 +18,6 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
 
   const isLoading = updateState.isLoading
   const onClick = async () => {
-    if (isLoading || disabled) return
     setFetchers([createDataSender<{}, PutPlayerRequest>(`${process.env.API_BASE_URL}/api/game/${gameID}/player`, 'PUT', {
       playerType,
       team,
@@ -28,8 +27,9 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
   const isMe = myPlayer && (myPlayer.id === player?.player?.id)
   const playerDisplayName = () => isMe ? <b>{player!.player!.name} (Me)</b> : player!.player!.name
 
+  const clickable = !isLoading && !disabled && !player
   return (
-    <div className='player-container' onClick={onClick}>
+    <div className={`player-container ${clickable ? 'clickable' : undefined}`} onClick={clickable ? onClick : undefined}>
       <span className='player-type'>
         {playerType === 'codemaster' ? 'CODEMASTER' : 'GUESSER'}
       </span>
@@ -40,16 +40,20 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
       )}
       <style jsx>{`
         .player-container {
-          cursor: pointer;
           border: 1px solid gray;
+          border-radius: 10px;
           height: 80px;
           width: 140px;
+          margin-bottom: 20px;
+          padding: 10px;
+          text-align: center;
         }
         .player-type {
           display: block;
         }
         .player {
           display: block;
+          margin-top: 10px;
         }
       `}</style>
     </div>
@@ -90,7 +94,7 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
       <h2>Game setup</h2>
       <div className='game-setup-container'>
         <div className='team'>
-          <h2>Blue Team</h2>
+          <h3>Blue Team</h3>
           <ChoiceButton
             myPlayer={myPlayer}
             team='1'
@@ -111,7 +115,7 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
           />
         </div>
         <div className='team'>
-          <h2>Red Team</h2>
+          <h3>Red Team</h3>
           <ChoiceButton
             myPlayer={myPlayer}
             team='2'
@@ -143,6 +147,12 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
         {`
           .start-buttons {
             margin-top: 20px;
+          }
+
+          .game-setup-container {
+            display: grid;
+            grid-column-gap: 30px;
+            grid-template-columns: 1fr 1fr;
           }
         `}
       </style>

@@ -67,7 +67,6 @@ const GameSetupPage: NextPage = () => {
   return (
     <Layout>
       <h1>Codenames</h1>
-      {myPlayerState.data ? <p>Player: {myPlayerState.data.player.sub} ({myPlayerState.data.player.id})</p> : undefined}
       {gameState.error ? (
         <p>ERROR: {gameState.error.message}</p>
       ) : undefined}

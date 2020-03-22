@@ -85,20 +85,22 @@ interface SpectatorViewProps {
 }
 const SpectatorView: FunctionComponent<SpectatorViewProps> = ({ currentTurn }) => (
   <div className='spectator-view'>
-    <h2>Hint:</h2>
+    <h3>Hint</h3>
     {currentTurn.hint_word ? (
-      <p>
-        <span className='hint'>{currentTurn.hint_word}</span>
-        {' '}<span className='hint-num'>{currentTurn.hint_num}</span>
-      </p>
+      <p className='hint'>{currentTurn.hint_word} - {currentTurn.hint_num}</p>
     ) : undefined}
     {!currentTurn.hint_word ? (
-      <p>Waiting...</p>
+      <p>Waiting for other player...</p>
     ) : undefined}
     <style jsx>
       {`
         .hint {
           font-weight: bold;
+          font-size: 120%;
+          border: 1px solid gray;
+          border-radius: 10px;
+          text-align: center;
+          padding: 10px;
         }
       `}
     </style>
@@ -194,6 +196,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           )
         })}
       </ol>
+      {isMyTurn && currentTurn.hint_word ? <p>Waiting for other playery to guess...</p> : undefined}
       <hr />
       {!game.game_over ?
         isCodeMaster && isMyTurn && !currentTurn.hint_word ?
@@ -284,6 +287,13 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           }
           .cover-citizen-other, .cover-citizen-mine {
             background-color: gray;
+          }
+
+          hr {
+            padding: 0;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            border: 0.5px solid gray;
           }
         `}
       </style>
