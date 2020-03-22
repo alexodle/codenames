@@ -2,7 +2,7 @@ import { FunctionComponent, SyntheticEvent, useState } from "react";
 import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest } from "../types/api";
 import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { keyBy } from "../util/util";
+import { keyBy, getOtherTeam } from "../util/util";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
@@ -119,6 +119,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
     }))
   }
 
+  const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
       <h1>Codenames</h1>
@@ -126,7 +127,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
         {game.board.map(cell => {
           const key = cellKey(cell)
           const cellType = cellTypes && cellTypes[key]
-          const clickable = !guessState.isLoading && isGuessing && !cell.covered
+
+          const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
+          const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
+          const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
+
+          const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
           return (
             <li
               key={key}
@@ -134,6 +140,14 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
               onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
             >
               {cellType && cellType.cell_type !== 'citizen' ? <span className={`cell-type ${cellType.cell_type || ''}`} /> : undefined}
+
+              {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
+
+              {cell.covered === 'assassin' || isFullCitizenCover ? <span className={`cover cover-${cell.covered}`} /> : undefined}
+
+              {isMyCitizenCover ? <span className={`partial-cover cover-citizen-mine`}>YOU</span> : undefined}
+              {isOtherCitizenCover ? <span className={`partial-cover cover-citizen-other`}>THEM</span> : undefined}
+
               <span className='cell-word'>{cell.word}</span>
             </li>
           )
@@ -160,12 +174,15 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             border-radius: 10px;
             text-align: center;
             height: 100px;
-            line-height: 100px;
             position: relative;
+          }
+          .cell-word {
+            line-height: 100px;
           }
           .codemaster-loading {
             background-color: #E8E8E8;
           }
+
           .cell-type {
             position: absolute;
             display: block;
@@ -173,12 +190,46 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             right: 5px;
             width: 30px;
             height: 30px;
+            opacity: 0.75;
           }
           .cell-type.assassin {
             background-color: black;
           }
           .cell-type.agent {
             background-color: green;
+          }
+
+          .cover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.5;
+          }
+          .cover-agent {
+            background-color: green;
+          }
+          .cover-assassin {
+            background-color: black;
+          }
+          .cover-citizen {
+            background-color: gray;
+          }
+
+          .partial-cover {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 30px;
+            height: 30px;
+            opacity: 0.75;
+            font-size: 50%;
+            font-weight: bold;
+            line-height: 30px;
+          }
+          .cover-citizen-other, .cover-citizen-mine {
+            background-color: gray;
           }
         `}
       </style>

@@ -7,9 +7,8 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
 
   ensureCorrectTurn(game, player, guess.turn_num)!
 
-  const currentTurn = game.currentTurn!
   const otherTeam = getOtherTeam(player.team)
-  const boardSpec = boardSpecs.find(s => s.team === player.team)!
+  const boardSpec = boardSpecs.find(s => s.team === otherTeam)!
 
   const cellIdx = getCellIdx(guess)
   const cell = game.board[cellIdx]
@@ -17,7 +16,9 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
   if (cell.row !== guess.row || cell.col !== guess.col || cellSpec.row !== guess.row || cellSpec.col !== guess.col) {
     throw new Error('Cells out of order')
   }
-  if (cell.covered && cell.covered !== 'citizen') {
+
+  const citizenOccupied = cell.covered === 'citizen' && (cell.covered_citizen_team === 'full' || cell.covered_citizen_team === player.team)
+  if (cell.covered && (cell.covered !== 'citizen' || citizenOccupied)) {
     throw new InvalidRequestError('Cell already covered')
   }
 
@@ -25,14 +26,15 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
 
   if (cellSpec.cell_type === 'assassin') {
     results.push(
-      { type: 'cover', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCover: 'assassin' },
+      { type: 'cover', newCover: 'assassin', turnNum: guess.turn_num, row: guess.row, col: guess.col },
       { type: 'gameover', turnNum: guess.turn_num })
   } else if (cellSpec.cell_type === 'citizen') {
+    const citizenTeam = cell.covered_citizen_team ? 'full' : player.team
     results.push(
-      { type: 'cover', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCover: 'citizen' },
+      { type: 'cover', newCover: 'citizen', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCoverCitizenTeam: citizenTeam },
       { type: 'nextturn', nextTeam: player.team, nextTurnNum: guess.turn_num + 1 })
   } else {
-    results.push({ type: 'cover', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCover: otherTeam })
+    results.push({ type: 'cover', newCover: otherTeam, turnNum: guess.turn_num, row: guess.row, col: guess.col })
 
     const gameOver = isGameOver2Player(game, boardSpecs, results)
     if (gameOver) {

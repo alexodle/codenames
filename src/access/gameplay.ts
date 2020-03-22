@@ -56,9 +56,9 @@ export const processEvents = async (gameID: number, events: GameEvent[]) => {
         case 'cover':
           ensureUpdated('Failed to add cover', await client.query(`
             UPDATE game_board_cell
-            SET covered = $4
+            SET covered = $4, covered_citizen_team = $5
             WHERE game_id = $1 AND row = $2 AND col = $3;
-            `, [gameID, event.row, event.col, event.newCover]))
+            `, [gameID, event.row, event.col, event.newCover, event.newCover === 'citizen' ? event.newCoverCitizenTeam : undefined]))
           break
         case 'nextturn':
           ensureUpdated('Failed to increment turn num', await client.query(`
@@ -80,7 +80,7 @@ export const processEvents = async (gameID: number, events: GameEvent[]) => {
           ensureUpdated('Failed to set game over', await client.query(`
             UPDATE game
             SET winning_team = $3, game_over = true
-            WHERE game_id = $1 AND current_turn_num = $2;
+            WHERE id = $1 AND current_turn_num = $2;
             `, [gameID, event.turnNum, event.winner]))
           break
       }

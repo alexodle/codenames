@@ -172,7 +172,7 @@ export const getTurn = async (gameID: number, turnNum: number): Promise<GameTurn
 
 export const getGameBoard = async (gameID: number): Promise<GameBoardCell[]> => {
   const result = await query<GameBoardCell>(`
-    SELECT game_id, row, col, word, covered
+    SELECT game_id, row, col, word, covered, covered_citizen_team
     FROM game_board_cell
     WHERE game_id = $1
     ORDER BY row ASC, col ASC;

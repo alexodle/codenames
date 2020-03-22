@@ -17,6 +17,9 @@ export const asPlayerType = (playerType: string | string[]): PlayerType => {
 
 export type CoverType = Team | 'assassin' | 'citizen'
 
+// Just for 2-player mode
+export type CoveredCitizenTeam = Team | 'full'
+
 export type SpecCardSide = 'front' | 'back'
 
 export type CellType = 'citizen' | 'agent' | 'assassin'
@@ -47,6 +50,7 @@ export interface GameBoardCell {
   col: number
   word: string
   covered?: CoverType
+  covered_citizen_team?: CoveredCitizenTeam
 }
 
 export interface GameTurn {
@@ -106,12 +110,21 @@ export type GuessEvent = {
   col: number
 }
 
-export type CellCoverEvent = {
+export type CitizenCoverEvent = {
   type: 'cover'
+  newCover: 'citizen'
   turnNum: number
   row: number
   col: number
-  newCover: CoverType
+  newCoverCitizenTeam: CoveredCitizenTeam
+}
+
+export type CellCoverEvent = CitizenCoverEvent | {
+  type: 'cover'
+  newCover: Exclude<CoverType, 'citizen'>
+  turnNum: number
+  row: number
+  col: number
 }
 
 export type PassEvent = {
