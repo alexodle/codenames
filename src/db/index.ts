@@ -13,8 +13,6 @@ export const query = async <R>(text: string, values: any, client?: Client): Prom
 }
 
 export const withTransaction = async (cb: (client: Client) => Promise<void>) => {
-  // note: we don't try/catch this because if connecting throws an exception
-  // we don't need to dispose of the client (it will be undefined)
   const client = await pool.connect()
   try {
     await client.query('BEGIN')

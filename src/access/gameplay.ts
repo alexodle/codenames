@@ -83,6 +83,10 @@ export const processEvents = async (gameID: number, events: GameEvent[]) => {
             WHERE id = $1 AND current_turn_num = $2;
             `, [gameID, event.turnNum, event.winner]))
           break
+        case 'pass':
+          break
+        default:
+          throw new Error(`Unrecognized event: ${event['type']}`)
       }
     }
   })
