@@ -44,16 +44,19 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
     if (isGameOver2Player(game, boardSpecs, results)) {
       results.push({ type: 'gameover', turnNum: guess.turn_num, winner: '1' })
     }
-    
+
   }
   return results
 }
 
 export const processPass = (game: Game, player: GamePlayer, turnNum: number): GameEvent[] => {
   ensureCorrectTurn(game, player, turnNum)
+  if (turnNum === TWO_PLAYER_TURNS) {
+    throw new InvalidRequestError('Cannot pass on last turn')
+  }
   return [
     { type: 'pass', turnNum },
-    { type: 'nextturn', nextTeam: getOtherTeam(player.team), nextTurnNum: turnNum + 1 },
+    { type: 'nextturn', nextTeam: player.team, nextTurnNum: turnNum + 1 },
   ]
 }
 

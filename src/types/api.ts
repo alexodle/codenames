@@ -41,3 +41,7 @@ export interface PutGuessRequest {
   row: number
   col: number
 }
+
+export interface PutPassRequest {
+  turnNum: number
+}

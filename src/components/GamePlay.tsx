@@ -1,5 +1,5 @@
 import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
-import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest } from "../types/api";
+import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest, PutPassRequest } from "../types/api";
 import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { keyBy, getOtherTeam, capitalize, isValidHintQuick } from "../util/util";
@@ -43,39 +43,6 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
         </select>
       </label>
       <button type='submit' onClick={submitHint} disabled={setHintState.isLoading || invalidHint}>Submit hint</button>
-      <style jsx>
-        {`
-          input, select, button {
-            font-size: 130%;
-            border: 1px solid gray;
-            border-radius: 5px;
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            outline: none;
-          }
-          input.error {
-            border: 1px solid red;
-          }
-          .input-error {
-            display: block;
-            margin-top: 5px;
-            margin-bottom: 5px;
-            color: red;
-            font-weight: normal;
-          }
-          label {
-            display: block;
-            margin-bottom: 20px;
-            margin-top: 20px;
-            font-weight: bold;
-            font-size: 120%;
-          }
-          button {
-            cursor: pointer;
-          }
-        `}
-      </style>
     </div>
   )
 }
@@ -145,7 +112,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
 
   const currentTurn = game.currentTurn!
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
-  const isGuessing = ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
+  const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
 
   const [guessState, setGuessFetcher] = useDataFetcher(myURL, undefined, false)
   const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
@@ -156,6 +123,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
       row: cell.row,
       col: cell.col,
     }))
+  }
+
+  const onPass = (ev: SyntheticEvent) => {
+    ev.preventDefault()
+    setGuessFetcher(createDataSender<{}, PutPassRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/pass`, 'PUT', { turnNum: currentTurn.turn_num }))
   }
 
   const otherTeam = getOtherTeam(myGamePlayer.team)
@@ -171,7 +143,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
           const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
-          const clickable = !game.game_over && !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
+          const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
           return (
             <li
               key={key}
@@ -196,7 +168,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           )
         })}
       </ol>
-      {isMyTurn && currentTurn.hint_word ? <p>Waiting for other playery to guess...</p> : undefined}
+      {isGuessing ? <button onClick={onPass} disabled={guessState.isLoading}>Pass</button> : undefined}
+      {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
       <hr />
       {!game.game_over ?
         isCodeMaster && isMyTurn && !currentTurn.hint_word ?
