@@ -1,5 +1,4 @@
 import { random, sample, sampleSize, shuffle } from "lodash"
-import { isNullOrUndefined } from "util"
 import { query, withTransaction } from "../db"
 import { Game, GameBoardCell, GameInfo, GamePlayer, GameTurn, GameType, Guess, Player, PlayerType, SpecCardSide, Team, TEAMS } from "../types/model"
 import { COLS, ROWS } from "../util/constants"
@@ -13,15 +12,15 @@ export const createGame = async (player: Player): Promise<number> => {
 }
 
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
-  const result = await query(`
-    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
+  const result = await query<GameInfo>(`
+    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team, game_over
     FROM game
     WHERE id = $1
     LIMIT 1;`, [gameID])
   if (!result.rows.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
   }
-  const game = result.rows[0] as GameInfo
+  const game = result.rows[0]
   game.is_started = !!game.game_type
 
   const players = await getGamePlayers(gameID)
@@ -31,23 +30,12 @@ export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
 }
 
 export const getGame = async (gameID: number): Promise<Game> => {
-  const result = await query(`
-    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team
-    FROM game
-    WHERE id = $1
-    LIMIT 1;`, [gameID])
-  if (!result.rows.length) {
-    throw new NotFoundError(`game not found: ${gameID}`)
-  }
-  const game = result.rows[0] as Game
-  game.is_started = !!game.game_type
+  const game = await getGameInfo(gameID) as Game
 
-  const [players, board, currentTurn] = await Promise.all([
-    getGamePlayers(gameID),
+  const [board, currentTurn] = await Promise.all([
     getGameBoard(gameID),
-    !isNullOrUndefined(game.current_turn_num) ? getTurn(gameID, game.current_turn_num) : undefined])
+    game.is_started ? getTurn(gameID, game.current_turn_num!) : undefined])
 
-  game.players = players
   game.board = board
   game.currentTurn = currentTurn
 

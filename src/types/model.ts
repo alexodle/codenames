@@ -24,9 +24,20 @@ export type SpecCardSide = 'front' | 'back'
 
 export type CellType = 'citizen' | 'agent' | 'assassin'
 
-export interface Auth0User {
-  sub: string
-  name: string
+export interface GameInfo {
+  id: number
+  is_started: boolean
+  created_by_player_id: number
+  current_turn_num?: number
+  game_type?: GameType
+  winning_team?: Team
+  game_over: boolean
+  players: GamePlayer[]
+}
+
+export interface Game extends GameInfo {
+  currentTurn?: GameTurn
+  board: GameBoardCell[]
 }
 
 export interface Player {
@@ -68,21 +79,6 @@ export interface Guess {
   guess_num: number
   row: number
   col: number
-}
-
-export interface GameInfo {
-  id: number
-  is_started: boolean
-  created_by_player_id: number
-  current_turn_num?: number
-  game_type?: GameType
-  winning_team?: Team
-  players: GamePlayer[]
-}
-
-export interface Game extends GameInfo {
-  currentTurn?: GameTurn
-  board: GameBoardCell[]
 }
 
 export interface SpecCardCell {
@@ -142,4 +138,14 @@ export type GameOverEvent = {
   type: 'gameover'
   turnNum: number
   winner?: Team
+}
+
+export interface Auth0User {
+  sub: string
+  name: string
+}
+
+export interface GameChangeV2Notification {
+  gameID: number
+  events: GameEvent[]
 }

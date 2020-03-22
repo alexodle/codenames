@@ -87,7 +87,7 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
   const disabled = startGameState.isLoading
   return (
     <div>
-      <h1>Game setup</h1>
+      <h2>Game setup</h2>
       <div className='game-setup-container'>
         <div className='team'>
           <h2>Blue Team</h2>

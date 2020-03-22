@@ -22,7 +22,7 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
     ev.preventDefault()
     setFetcher(createDataSender<{}, PutHintRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}}/hint`, 'PUT', {
       turnNum: game.current_turn_num!,
-      hint,
+      hint: hint.trim(),
       hintNum: parseInt(hintNum, 10),
     }))
   }
@@ -105,6 +105,24 @@ const SpectatorView: FunctionComponent<SpectatorViewProps> = ({ currentTurn }) =
   </div>
 )
 
+interface GameOverViewProps {
+  game: Game
+}
+const GameOverView: FunctionComponent<GameOverViewProps> = ({ game }) => {
+  if (game.winning_team) {
+    return (
+      <h2 className='celebration'>
+        YOU WON!!
+      </h2>
+    )
+  }
+  return (
+    <h2 className='lost'>
+      YOU LOST :(
+    </h2>
+  )
+}
+
 export interface GamePlayProps {
   game: Game
   myURL: string
@@ -141,8 +159,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
-      <h1>Codenames</h1>
-      <ol className='board'>
+      {game.game_over ? <GameOverView game={game} /> : undefined}
+      <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
         {game.board.map(cell => {
           const key = cellKey(cell)
           const cellSpec = cellSpecs && cellSpecs[key]
@@ -151,7 +169,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
           const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
-          const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
+          const clickable = !game.game_over && !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
           return (
             <li
               key={key}
@@ -177,9 +195,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
         })}
       </ol>
       <hr />
-      {isCodeMaster && isMyTurn && !currentTurn.hint_word ?
-        <CodeMasterHintInputView game={game} myURL={myURL} /> :
-        <SpectatorView currentTurn={currentTurn} />
+      {!game.game_over ?
+        isCodeMaster && isMyTurn && !currentTurn.hint_word ?
+          <CodeMasterHintInputView game={game} myURL={myURL} /> :
+          <SpectatorView currentTurn={currentTurn} />
+        : undefined
       }
       <style jsx>
         {`
@@ -191,6 +211,13 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             list-style-type: none;
             margin: 0;
             padding: 0;
+            padding: 10px;
+            border: 1px solid gray;
+            border-radius: 10px;
+            overflow: hidden;
+          }
+          .board.game-over {
+            background-color: #E8E8E8;
           }
           .board-cell {
             border: 1px solid gray;
@@ -214,13 +241,13 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             right: 5px;
             width: 30px;
             height: 30px;
-            opacity: 0.75;
             font-size: 50%;
             line-height: 30px;
             color: white;
           }
           .cell-type.assassin {
-            background-color: black;
+            background-color: #000000;
+            color: white;
           }
           .cell-type.agent {
             background-color: green;
