@@ -29,7 +29,6 @@ const putPassAPI = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   const events = processPass(game, gamePlayer, body.turnNum)
-  console.log(events)
   await processEvents(gameID, events)
 
   res.status(201).end()

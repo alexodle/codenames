@@ -1,6 +1,15 @@
 import { GamePlayer, Game, Team } from "../types/model"
 import { ROWS, COLS } from "./constants"
 
+export const range = (size: number, startAt: number = 0): number[] => {
+  const a = []
+  const max = startAt + size
+  for (let i = startAt; i < max; i++) {
+    a.push(i)
+  }
+  return a
+}
+
 export const keyBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T } => {
   const d: { [key: string]: T } = {}
   for (const v of a) {

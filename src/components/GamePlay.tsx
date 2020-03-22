@@ -2,7 +2,8 @@ import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
 import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest, PutPassRequest } from "../types/api";
 import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { keyBy, getOtherTeam, capitalize, isValidHintQuick } from "../util/util";
+import { keyBy, getOtherTeam, capitalize, isValidHintQuick, range } from "../util/util";
+import { TWO_PLAYER_TURNS } from "../util/constants";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
@@ -92,12 +93,43 @@ const GameOverView: FunctionComponent<GameOverViewProps> = ({ game }) => {
   )
 }
 
+interface TurnsViewProps {
+  turnNum: number
+}
+const TurnsView: FunctionComponent<TurnsViewProps> = ({ turnNum }) => (
+  <ol className='turns-view'>
+    {range(TWO_PLAYER_TURNS - turnNum + 1, 1).map(n => (
+      <li key={n} className='turn-box' />
+    ))}
+    <style jsx>
+      {`
+        .turns-view {
+          list-style-type: none;
+          height: 100%;
+          padding: 0;
+          margin: 0;
+          border: 1px solid gray;
+          border-radius: 10px;
+        }
+        .turn-box {
+          padding: 0;
+          width: 0;
+          margin-left: 4px;
+          margin-top: 20px;
+          width: 30px;
+          height: 30px;
+          background-color: gray;
+        }
+      `}
+    </style>
+  </ol>
+)
+
 export interface GamePlayProps {
   game: Game
   myURL: string
   myPlayer: Player
 }
-
 export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlayer }) => {
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
 
@@ -113,6 +145,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
   const currentTurn = game.currentTurn!
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
   const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
+  const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
   const [guessState, setGuessFetcher] = useDataFetcher(myURL, undefined, false)
   const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
@@ -133,42 +166,45 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
-      {game.game_over ? <GameOverView game={game} /> : undefined}
-      <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
-        {game.board.map(cell => {
-          const key = cellKey(cell)
-          const cellSpec = cellSpecs && cellSpecs[key]
+      <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
+        {game.game_over ? <GameOverView game={game} /> : undefined}
+        <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
+          {game.board.map(cell => {
+            const key = cellKey(cell)
+            const cellSpec = cellSpecs && cellSpecs[key]
 
-          const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
-          const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
-          const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
+            const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
+            const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
+            const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
-          const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
-          return (
-            <li
-              key={key}
-              className={`board-cell ${clickable ? 'clickable' : ''} ${codemasterViewState.isLoading ? 'codemaster-loading' : ''}`}
-              onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
-            >
-              {cellSpec && cellSpec.cell_type !== 'citizen' ? (
-                <span className={`cell-type ${cellSpec.cell_type || ''}`}>
-                  {cellSpec.cell_type ? capitalize(cellSpec.cell_type) : ''}
-                </span>
-              ) : undefined}
+            const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
+            return (
+              <li
+                key={key}
+                className={`board-cell ${clickable ? 'clickable' : ''} ${codemasterViewState.isLoading ? 'codemaster-loading' : ''}`}
+                onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
+              >
+                {cellSpec && cellSpec.cell_type !== 'citizen' ? (
+                  <span className={`cell-type ${cellSpec.cell_type || ''}`}>
+                    {cellSpec.cell_type ? capitalize(cellSpec.cell_type) : ''}
+                  </span>
+                ) : undefined}
 
-              {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
+                {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
 
-              {cell.covered === 'assassin' || isFullCitizenCover ? <span className={`cover cover-${cell.covered}`} /> : undefined}
+                {cell.covered === 'assassin' || isFullCitizenCover ? <span className={`cover cover-${cell.covered}`} /> : undefined}
 
-              {isMyCitizenCover ? <span className={`partial-cover cover-citizen-mine`}>YOU</span> : undefined}
-              {isOtherCitizenCover ? <span className={`partial-cover cover-citizen-other`}>THEM</span> : undefined}
+                {isMyCitizenCover ? <span className={`partial-cover cover-citizen-mine`}>YOU</span> : undefined}
+                {isOtherCitizenCover ? <span className={`partial-cover cover-citizen-other`}>THEM</span> : undefined}
 
-              <span className='cell-word'>{cell.word}</span>
-            </li>
-          )
-        })}
-      </ol>
-      {isGuessing ? <button onClick={onPass} disabled={guessState.isLoading}>Pass</button> : undefined}
+                <span className='cell-word'>{cell.word}</span>
+              </li>
+            )
+          })}
+        </ol>
+        {game.game_type === '2player' ? <TurnsView turnNum={currentTurn.turn_num} /> : undefined}
+      </div>
+      {isGuessing ? <button onClick={onPass} disabled={guessState.isLoading || isLastTurn}>Pass</button> : undefined}
       {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
       <hr />
       {!game.game_over ?
@@ -179,6 +215,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
       }
       <style jsx>
         {`
+          .game-container.two-player {
+            display: grid;
+            grid-template-columns: 1fr 40px;
+            column-gap: 10px;
+          }
+
           .board {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
@@ -223,7 +265,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
           }
           .cell-type.assassin {
             background-color: #000000;
-            color: white;
           }
           .cell-type.agent {
             background-color: green;
