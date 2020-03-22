@@ -9,7 +9,7 @@ RestartSec=1
 User=ubuntu
 EnvironmentFile=/home/ubuntu/code/codenames/.env-prod
 WorkingDirectory=/home/ubuntu/code/codenames
-ExecStart=/usr/bin/env yarn run startSocket
+ExecStart=/usr/bin/env /home/ubuntu/.yarn/bin/yarn run startSocket
 
 [Install]
 WantedBy=multi-user.target
