@@ -20,18 +20,18 @@ export function createRequestHandler(spec: HandlerSpec): HandlerFunc {
     const method = (req.method || '').toLowerCase()
     const methodHandler = spec[method as Method]
     if (!methodHandler) {
-      return res.status(NotFoundErrorStatus).json({ error: `not found: ${req.method}` })
+      return res.status(NotFoundErrorStatus).end(`not found: ${req.method}`)
     }
 
     try {
       await methodHandler(req, res)
     } catch (e) {
       if (e instanceof NotFoundError) {
-        res.status(NotFoundErrorStatus).json({ error: e.message || 'not found' })
+        res.status(NotFoundErrorStatus).end(e.message || 'not found')
       } else if (e instanceof InvalidRequestError) {
-        res.status(InvalidRequestErrorStatus).json({ error: e.message || 'invalid request' })
+        res.status(InvalidRequestErrorStatus).end(e.message || 'invalid request')
       } else if (e instanceof InvalidSessionError || e.code === 'invalid_session') {
-        res.status(InvalidSessionErrorStatus).json({ error: 'invalid session' })
+        res.status(InvalidSessionErrorStatus).end('invalid session')
       } else {
         console.error(e.stack)
         res.status(e.status || 500).end(e.message || 'error')

@@ -1,6 +1,8 @@
 import { CellCoverEvent, Game, GameEvent, GamePlayer, Guess, Team, TeamBoardSpec, TEAMS } from "../types/model";
 import { InvalidRequestError } from "../util/errors";
 import { getCellIdx, getCellKey, getOtherTeam, keyBy } from "../util/util";
+import { TWO_PLAYER_TURNS } from "../util/constants";
+import next from "next";
 
 export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], player: GamePlayer, guess: Guess): GameEvent[] => {
   const results: GameEvent[] = []
@@ -28,20 +30,22 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
     results.push(
       { type: 'cover', newCover: 'assassin', turnNum: guess.turn_num, row: guess.row, col: guess.col },
       { type: 'gameover', turnNum: guess.turn_num })
+
   } else if (cellSpec.cell_type === 'citizen') {
     const citizenTeam = cell.covered_citizen_team ? 'full' : player.team
-    results.push(
-      { type: 'cover', newCover: 'citizen', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCoverCitizenTeam: citizenTeam },
-      { type: 'nextturn', nextTeam: player.team, nextTurnNum: guess.turn_num + 1 })
+    const coverEvent: GameEvent = { type: 'cover', newCover: 'citizen', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCoverCitizenTeam: citizenTeam }
+    const nextEvent: GameEvent = guess.turn_num < TWO_PLAYER_TURNS ?
+      { type: 'nextturn', nextTeam: player.team, nextTurnNum: guess.turn_num + 1 } :
+      { type: 'gameover', turnNum: guess.turn_num }
+    results.push(coverEvent, nextEvent)
+
   } else {
     results.push({ type: 'cover', newCover: otherTeam, turnNum: guess.turn_num, row: guess.row, col: guess.col })
-
-    const gameOver = isGameOver2Player(game, boardSpecs, results)
-    if (gameOver) {
+    if (isGameOver2Player(game, boardSpecs, results)) {
       results.push({ type: 'gameover', turnNum: guess.turn_num, winner: '1' })
     }
+    
   }
-
   return results
 }
 

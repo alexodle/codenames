@@ -12,12 +12,20 @@ export interface DataState<R> {
 
 const AUTH_ERRORS = [401, 402, 403]
 
-function ensureResponseOk(res: Response): Response {
+async function getErrorMessage(res: Response): Promise<string> {
+  try {
+    return await res.text()
+  } catch {
+    return `${res.statusText} (${res.status})`
+  }
+}
+
+async function ensureResponseOk(res: Response): Promise<Response> {
   if (!res.ok) {
     if (AUTH_ERRORS.includes(res.status)) {
       throw new InvalidSessionError()
     } else {
-      throw new Error(`error: ${res.statusText} (${res.status})`)
+      throw new Error(await getErrorMessage(res))
     }
   }
   return res
@@ -25,14 +33,14 @@ function ensureResponseOk(res: Response): Response {
 
 export function createDataFetcher<R>(fullURL: string): DataFetcher<R> {
   return async (): Promise<R> => {
-    const res = ensureResponseOk(await fetch(fullURL))
+    const res = await ensureResponseOk(await fetch(fullURL))
     return await res.json() as R
   }
 }
 
 export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT', data: T): DataFetcher<R> {
   return async (): Promise<R> => {
-    const res = ensureResponseOk(await fetch(fullURL, {
+    const res = await ensureResponseOk(await fetch(fullURL, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -55,7 +63,11 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
     let cancelled = false
 
     const fetchData = async () => {
-      if (!fetchers.length) return
+      if (!fetchers.length) {
+        setState({ ...state, error: undefined, data: undefined, completed: false })
+        return
+      }
+
       try {
         setState({ ...state, isLoading: true, error: undefined, completed: false })
         const datas = await Promise.all(fetchers.map(f => f()))

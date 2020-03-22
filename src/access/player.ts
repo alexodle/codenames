@@ -13,6 +13,9 @@ export const getOrCreatePlayer = async (sub: string, name: string): Promise<Play
   if (!sub) {
     throw new Error('empty sub')
   }
+  if (!name) {
+    throw new Error('empty name')
+  }
 
   let player = await getPlayer(sub)
   if (!player) {
@@ -23,7 +26,7 @@ export const getOrCreatePlayer = async (sub: string, name: string): Promise<Play
   }
 
   if (!player) {
-    throw new Error('unable to create player')
+    throw new Error('unable to get or create player')
   }
   return player
 }

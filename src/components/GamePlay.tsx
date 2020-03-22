@@ -1,8 +1,8 @@
-import { FunctionComponent, SyntheticEvent, useState } from "react";
+import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
 import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest } from "../types/api";
 import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { keyBy, getOtherTeam } from "../util/util";
+import { keyBy, getOtherTeam, capitalize, isValidHintQuick } from "../util/util";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
@@ -27,17 +27,22 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
     }))
   }
 
+  const wordConflict = setHintState.error?.message.startsWith('InvalidHint')
+  const invalidHint = hint.length > 0 && (wordConflict || !isValidHintQuick(hint))
   return (
     <div className='codemaster-input'>
       <label htmlFor='hint'>
-        Hint: <input id='hint' name='hint' placeholder='Hint' value={hint} onChange={ev => setHint(ev.target.value)} disabled={setHintState.isLoading} />
+        Hint:
+        {invalidHint ? <span className='input-error'>Invalid hint{wordConflict ? ' - too close to a word on the board' : undefined}</span> : undefined}
+        <input id='hint' name='hint' placeholder='Hint' value={hint} onChange={ev => { setHint(ev.target.value); setFetcher(undefined); }} disabled={setHintState.isLoading} className={invalidHint ? 'error' : ''} />
       </label>
       <label htmlFor='hintNum'>
-        Amount: <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={setHintState.isLoading}>
+        Amount:
+        <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={setHintState.isLoading}>
           {HINT_NUM_RANGE.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
       </label>
-      <button type='submit' onClick={submitHint} disabled={!hint.length || setHintState.isLoading}>Submit hint</button>
+      <button type='submit' onClick={submitHint} disabled={setHintState.isLoading || invalidHint}>Submit hint</button>
       <style jsx>
         {`
           input, select, button {
@@ -46,11 +51,25 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
             border-radius: 5px;
             width: 100%;
             padding: 10px;
+            margin-top: 10px;
+            outline: none;
+          }
+          input.error {
+            border: 1px solid red;
+          }
+          .input-error {
+            display: block;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            color: red;
+            font-weight: normal;
           }
           label {
             display: block;
             margin-bottom: 20px;
             margin-top: 20px;
+            font-weight: bold;
+            font-size: 120%;
           }
           button {
             cursor: pointer;
@@ -99,9 +118,9 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
   const [codemasterViewState] = useDataFetcher(myURL, codemasterDataFetcher, isCodeMaster)
 
-  let cellTypes: { [key: string]: SpecCardCell }
+  let cellSpecs: { [key: string]: SpecCardCell }
   if (codemasterViewState.data) {
-    cellTypes = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, cellKey)
+    cellSpecs = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, cellKey)
   }
 
   const currentTurn = game.currentTurn!
@@ -126,7 +145,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
       <ol className='board'>
         {game.board.map(cell => {
           const key = cellKey(cell)
-          const cellType = cellTypes && cellTypes[key]
+          const cellSpec = cellSpecs && cellSpecs[key]
 
           const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
           const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
@@ -139,7 +158,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
               className={`board-cell ${clickable ? 'clickable' : ''} ${codemasterViewState.isLoading ? 'codemaster-loading' : ''}`}
               onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
             >
-              {cellType && cellType.cell_type !== 'citizen' ? <span className={`cell-type ${cellType.cell_type || ''}`} /> : undefined}
+              {cellSpec && cellSpec.cell_type !== 'citizen' ? (
+                <span className={`cell-type ${cellSpec.cell_type || ''}`}>
+                  {cellSpec.cell_type ? capitalize(cellSpec.cell_type) : ''}
+                </span>
+              ) : undefined}
 
               {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
 
@@ -175,6 +198,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             text-align: center;
             height: 100px;
             position: relative;
+            overflow: hidden;
           }
           .cell-word {
             line-height: 100px;
@@ -191,6 +215,9 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             width: 30px;
             height: 30px;
             opacity: 0.75;
+            font-size: 50%;
+            line-height: 30px;
+            color: white;
           }
           .cell-type.assassin {
             background-color: black;
@@ -225,8 +252,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
             height: 30px;
             opacity: 0.75;
             font-size: 50%;
-            font-weight: bold;
             line-height: 30px;
+            color: white;
           }
           .cover-citizen-other, .cover-citizen-mine {
             background-color: gray;

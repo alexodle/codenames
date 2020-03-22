@@ -20,6 +20,15 @@ export const groupBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T[] }
   return d
 }
 
+export const any = <T>(a: T[], cb: (v: T) => boolean): boolean => {
+  for (const v of a) {
+    if (cb(v)) return true
+  }
+  return false
+}
+
+export const capitalize = (s: string): string => s[0].toUpperCase() + s.substr(1)
+
 // Returns [codemaster1, codemaster2, guessers1, guessers2]
 export const playersByPosition = (players: GamePlayer[]): [GamePlayer | undefined, GamePlayer | undefined, GamePlayer[], GamePlayer[]] => {
   const groups = groupBy(players, p => `${p.team}:${p.player_type}`)
@@ -35,3 +44,14 @@ export const getOtherTeam = (team: Team): Team => team === '1' ? '2' : '1'
 export const getCellKey = (cell: { row: number, col: number }): string => `${cell.row}:${cell.col}`
 
 export const getCellIdx = (cell: { row: number, col: number }): number => cell.row * ROWS + cell.col % COLS
+
+
+const HINT_RE = /^[a-zA-Z]+( *[a-zA-Z]+)?$/
+export const isValidHintQuick = (hint: string) => hint && HINT_RE.test(hint.trim())
+
+export const isValidHint = (hint: string, words: string[]) => {
+  hint = hint.trim().toLowerCase()
+  return isValidHintQuick(hint) && !any(words.map(w => w.toLowerCase()), w => (
+    hint.length > w.length ? hint.includes(w) : w.includes(hint)
+  ))
+}
