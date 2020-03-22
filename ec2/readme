@@ -1,0 +1,2 @@
+1. Run ./ec2_init.sh
+2. cp weath.service /etc/systemd/system/weath.service

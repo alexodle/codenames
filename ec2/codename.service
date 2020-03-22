@@ -1,0 +1,15 @@
+[Unit]
+Description=Codenames webserver
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=ubuntu
+EnvironmentFile=/home/ubuntu/code/codenames/.env-prod
+WorkingDirectory=/home/ubuntu/code/codenames
+ExecStart=/usr/bin/env yarn run start
+
+[Install]
+WantedBy=multi-user.target
