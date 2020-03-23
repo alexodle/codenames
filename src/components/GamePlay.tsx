@@ -11,10 +11,9 @@ const cellKey = (c: { row: number, col: number }): string => `${c.row}:${c.col}`
 
 interface CodeMasterHintInputViewProps {
   game: Game
-  myURL: string
 }
-const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = ({ game, myURL }) => {
-  const [setHintState, setFetcher] = useDataFetcher(myURL, undefined, false)
+const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = ({ game }) => {
+  const [setHintState, setFetcher] = useDataFetcher(undefined, false)
 
   const [hint, setHint] = useState('')
   const [hintNum, setHintNum] = useState('1')
@@ -127,15 +126,14 @@ const TurnsView: FunctionComponent<TurnsViewProps> = ({ turnNum }) => (
 
 export interface GamePlayProps {
   game: Game
-  myURL: string
   myPlayer: Player
 }
-export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlayer }) => {
+export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) => {
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
 
   const isCodeMaster = myGamePlayer.player_type === 'codemaster'
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
-  const [codemasterViewState] = useDataFetcher(myURL, codemasterDataFetcher, isCodeMaster)
+  const [codemasterViewState] = useDataFetcher(codemasterDataFetcher, isCodeMaster)
 
   let cellSpecs: { [key: string]: SpecCardCell }
   if (codemasterViewState.data) {
@@ -147,7 +145,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
   const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
   const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
-  const [guessState, setGuessFetcher] = useDataFetcher(myURL, undefined, false)
+  const [guessState, setGuessFetcher] = useDataFetcher(undefined, false)
   const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
     ev.preventDefault()
     setGuessFetcher(createDataSender<{}, PutGuessRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/guess`, 'PUT', {
@@ -209,7 +207,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myURL, myPlay
       <hr />
       {!game.game_over ?
         isCodeMaster && isMyTurn && !currentTurn.hint_word ?
-          <CodeMasterHintInputView game={game} myURL={myURL} /> :
+          <CodeMasterHintInputView game={game} /> :
           <SpectatorView currentTurn={currentTurn} />
         : undefined
       }

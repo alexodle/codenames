@@ -9,12 +9,11 @@ interface ChoiceButtonProps {
   playerType: PlayerType
   player?: GamePlayer
   myPlayer?: Player
-  myURL: string
   gameID?: number
   disabled?: boolean
 }
-const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, player, myURL, gameID, myPlayer, disabled }) => {
-  const [updateState, setFetchers] = useDataFetchers(myURL, [], false)
+const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, player, gameID, myPlayer, disabled }) => {
+  const [updateState, setFetchers] = useDataFetchers([], false)
 
   const isLoading = updateState.isLoading
   const onClick = async () => {
@@ -62,12 +61,11 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
 
 export interface GameSetupProps {
   game: Game
-  myURL: string
   myPlayer: Player
 }
 
-export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPlayer }) => {
-  const [startGameState, setStartGameFetcher] = useDataFetcher<{}>(myURL, undefined, false)
+export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer }) => {
+  const [startGameState, setStartGameFetcher] = useDataFetcher<{}>(undefined, false)
 
   const [codemaster1, codemaster2, guessers1, guessers2] = playersByPosition(game.players)
 
@@ -100,7 +98,6 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
             team='1'
             playerType='codemaster'
             player={codemaster1}
-            myURL={myURL}
             gameID={gameID}
             disabled={disabled}
           />
@@ -109,7 +106,6 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
             team='1'
             playerType='guesser'
             player={guessers1[0]}
-            myURL={myURL}
             gameID={gameID}
             disabled={disabled}
           />
@@ -121,7 +117,6 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
             team='2'
             playerType='codemaster'
             player={codemaster2}
-            myURL={myURL}
             gameID={gameID}
             disabled={disabled}
           />
@@ -130,7 +125,6 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myURL, myPl
             team='2'
             playerType='guesser'
             player={guessers2[0]}
-            myURL={myURL}
             gameID={gameID}
             disabled={disabled}
           />

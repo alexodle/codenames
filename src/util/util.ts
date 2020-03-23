@@ -1,5 +1,6 @@
 import { GamePlayer, Game, Team } from "../types/model"
 import { ROWS, COLS } from "./constants"
+import { InvalidSessionError } from "./errors"
 
 export const range = (size: number, startAt: number = 0): number[] => {
   const a = []
@@ -37,6 +38,26 @@ export const any = <T>(a: T[], cb: (v: T) => boolean): boolean => {
 }
 
 export const capitalize = (s: string): string => s[0].toUpperCase() + s.substr(1)
+
+export const getErrorMessage = async (res: Response): Promise<string> => {
+  try {
+    return await res.text()
+  } catch {
+    return `${res.statusText} (${res.status})`
+  }
+}
+
+const AUTH_ERRORS = [401, 402, 403]
+export const ensureResponseOk = async (res: Response): Promise<Response> => {
+  if (!res.ok) {
+    if (AUTH_ERRORS.includes(res.status)) {
+      throw new InvalidSessionError()
+    } else {
+      throw new Error(await getErrorMessage(res))
+    }
+  }
+  return res
+}
 
 // Returns [codemaster1, codemaster2, guessers1, guessers2]
 export const playersByPosition = (players: GamePlayer[]): [GamePlayer | undefined, GamePlayer | undefined, GamePlayer[], GamePlayer[]] => {

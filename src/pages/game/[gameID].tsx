@@ -1,83 +1,93 @@
-import { NextPage } from "next";
+import fetch from 'isomorphic-unfetch';
+import { NextPage, NextPageContext } from "next";
 import { useRouter } from 'next/router';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import socketIO from 'socket.io-client';
+import { GamePlay } from "../../components/GamePlay";
 import { GameSetup } from "../../components/GameSetup";
 import { Layout } from "../../components/Layout";
 import { GetGameResult, GetMeResult } from "../../types/api";
+import { GameChangeV2Notification, Game, Player } from "../../types/model";
 import { createDataFetcher, DataFetcher, useDataFetcher } from "../../util/dataFetcher";
-import { GamePlay } from "../../components/GamePlay"
-import { GameChangeV2Notification } from "../../types/model";
-import { Socket } from "socket.io";
+import { ensureResponseOk } from '../../util/util';
+import { InvalidSessionError } from '../../util/errors';
 
-type RouterState =
-  | [number, string]
-  | [undefined, undefined]
-
-const useRouterState = (): RouterState => {
-  const router = useRouter()
-  const gameID = parseInt(router.query.gameID as string, 10)
-  if (isNaN(gameID)) return [undefined, undefined]
-
-  const myURL = `${process.env.BASE_URL}/game/${gameID}`
-  return [gameID, myURL]
+interface GameSetupPageProps {
+  myPlayer: Player
+  initialGame: Game
 }
 
-const GameSetupPage: NextPage = () => {
-  const [gameID, myURL] = useRouterState()
-
-  const [myPlayerState, setMyPlayerStateFetcher] = useDataFetcher<GetMeResult>(myURL || '', undefined, true)
+const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) => {
+  const [game, setGame] = useState(initialGame)
 
   const createGameFetcher = (): DataFetcher<GetGameResult> =>
-    createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${gameID}`)
+    createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${game.id}`)
 
-  const [gameState, setFetcher] = useDataFetcher<GetGameResult>(myURL || '', undefined, true)
+  const [gameFetchState, setFetcher] = useDataFetcher<GetGameResult>(undefined, true)
   useEffect(() => {
-    if (gameID !== undefined) {
-      setMyPlayerStateFetcher(createDataFetcher<GetMeResult>(`${process.env.API_BASE_URL}/api/me`))
+    if (gameFetchState.data) {
+      setGame(gameFetchState.data.game)
+    }
+  }, [gameFetchState.data])
+
+  useEffect(() => {
+    const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
+
+    io.on(`gameChange:${game.id}`, () => {
       setFetcher(createGameFetcher())
-    }
-  }, [gameID])
+    })
 
-  useEffect(() => {
-    if (gameID) {
-      const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
-
-      io.on(`gameChange:${gameID}`, () => {
-        setFetcher(createGameFetcher())
+    // TODO
+    if (process.env.NODE_ENV !== 'production') {
+      io.on(`gameChange_v2:${game.id}`, (not: GameChangeV2Notification) => {
+        console.log(not)
       })
-
-      // TODO
-      if (process.env.NODE_ENV !== 'production') {
-        io.on(`gameChange_v2:${gameID}`, (not: GameChangeV2Notification) => {
-          console.log(not)
-        })
-      }
-
-      return () => {
-        try {
-          io.removeAllListeners()
-          io.close()
-        } catch { }
-      }
     }
-  }, [gameID])
 
-  const isStarted = gameState.data?.game.is_started
+    return () => {
+      try {
+        io.removeAllListeners()
+        io.close()
+      } catch { }
+    }
+  })
+
   return (
     <Layout>
       <h1>Codenames</h1>
-      {gameState.error ? (
-        <p>ERROR: {gameState.error.message}</p>
-      ) : undefined}
-      {!gameState.data || !myPlayerState.data ? (
-        <p>Loading...</p>
-      ) : undefined}
-      {gameState.data && myPlayerState.data ? (
-        isStarted ? <GamePlay game={gameState.data.game} myURL={myURL || ''} myPlayer={myPlayerState.data.player} /> : <GameSetup game={gameState.data.game} myURL={myURL || ''} myPlayer={myPlayerState.data.player} />
-      ) : undefined}
+      {game.is_started ?
+        <GamePlay game={game} myPlayer={myPlayer} /> :
+        <GameSetup game={game} myPlayer={myPlayer} />
+      }
     </Layout>
   )
+}
+
+GameSetupPage.getInitialProps = async (ctx: NextPageContext) => {
+  const opts: RequestInit = { credentials: 'same-origin' }
+  if (typeof window === 'undefined') {
+    opts.headers = { cookie: ctx.req?.headers.cookie! }
+  }
+
+  try {
+    const meRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/me`, opts))
+    const gameRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/game/${ctx.query.gameID}`))
+
+    const meResult: GetMeResult = await meRes.json()
+    const gameResult: GetGameResult = await gameRes.json()
+
+    const ret: GameSetupPageProps = { myPlayer: meResult.player, initialGame: gameResult.game }
+    return ret
+  } catch (e) {
+    if (e instanceof InvalidSessionError) {
+      if (typeof window === 'undefined') {
+        ctx.res!.writeHead(302, { Location: `/api/auth/login?redirect=${encodeURI(`${process.env.BASE_URL}${ctx.req!.url!}`)}` })
+      } else {
+        window.location.href = `/api/auth/login?redirect=${encodeURI(window.location.href)}`
+      }
+    }
+    throw e
+  }
 }
 
 export default GameSetupPage

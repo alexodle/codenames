@@ -3,21 +3,22 @@ import { SyntheticEvent, useEffect } from "react";
 import { Layout } from "../components/Layout";
 import { GetMeResult, GetMyGamesResult, PostGameResult } from "../types/api";
 import { createDataFetcher, createDataSender, useDataFetcher, useDataFetchers } from "../util/dataFetcher";
-
-const MY_URL = `${process.env.BASE_URL}/dash`
+import { useRouter } from "next/router";
 
 interface DashPageProps { }
 
 const DashPage: NextPage<DashPageProps> = () => {
-  const [dataState] = useDataFetchers(MY_URL, [
+  const router = useRouter()
+
+  const [dataState] = useDataFetchers([
     createDataFetcher<GetMeResult>(`${process.env.API_BASE_URL}/api/me`),
     createDataFetcher<GetMyGamesResult>(`${process.env.API_BASE_URL}/api/game/mine`),
   ])
 
-  const [createGameState, setCreateGameFetcher] = useDataFetcher<PostGameResult>(MY_URL, undefined, false)
+  const [createGameState, setCreateGameFetcher] = useDataFetcher<PostGameResult>(undefined, false)
   useEffect(() => {
     if (createGameState.data && createGameState.data.gameID) {
-      window.location.href = `/game/${createGameState.data.gameID}`
+      router.push(`/game/${createGameState.data.gameID}`)
     }
   }, [createGameState.data])
 

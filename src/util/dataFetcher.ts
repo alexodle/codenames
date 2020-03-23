@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { InvalidSessionError } from "./errors"
+import { ensureResponseOk } from "./util"
 
 export type DataFetcher<R> = () => Promise<R>
 
@@ -8,27 +9,6 @@ export interface DataState<R> {
   completed: boolean
   error?: Error
   data?: R | undefined
-}
-
-const AUTH_ERRORS = [401, 402, 403]
-
-async function getErrorMessage(res: Response): Promise<string> {
-  try {
-    return await res.text()
-  } catch {
-    return `${res.statusText} (${res.status})`
-  }
-}
-
-async function ensureResponseOk(res: Response): Promise<Response> {
-  if (!res.ok) {
-    if (AUTH_ERRORS.includes(res.status)) {
-      throw new InvalidSessionError()
-    } else {
-      throw new Error(await getErrorMessage(res))
-    }
-  }
-  return res
 }
 
 export function createDataFetcher<R>(fullURL: string): DataFetcher<R> {
@@ -49,13 +29,13 @@ export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT', 
   }
 }
 
-export function useDataFetcher<R>(srcURL: string, initialFetcher: DataFetcher<R> | undefined, initialIsLoading: boolean): [DataState<R>, (fetcher: DataFetcher<R> | undefined) => void] {
-  const [state, setFetchers] = useDataFetchers(srcURL, initialFetcher ? [initialFetcher] : [], initialIsLoading)
+export function useDataFetcher<R>(initialFetcher: DataFetcher<R> | undefined, initialIsLoading: boolean): [DataState<R>, (fetcher: DataFetcher<R> | undefined) => void] {
+  const [state, setFetchers] = useDataFetchers(initialFetcher ? [initialFetcher] : [], initialIsLoading)
   const myState = state.data === undefined ? state : { isLoading: false, error: undefined, data: state.data[0] }
   return [myState as DataState<R>, (fetcher: DataFetcher<R> | undefined) => setFetchers(fetcher ? [fetcher] : [])]
 }
 
-export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any>[], initialIsLoading: boolean = true): [DataState<any>, (fetchers: DataFetcher<any>[]) => void] {
+export function useDataFetchers(initialFetchers: DataFetcher<any>[], initialIsLoading: boolean = true): [DataState<any>, (fetchers: DataFetcher<any>[]) => void] {
   const [fetchers, setFetchers] = useState<DataFetcher<any>[]>(initialFetchers)
   const [state, setState] = useState<DataState<any>>({ isLoading: initialIsLoading, error: undefined, data: undefined, completed: false })
 
@@ -77,7 +57,7 @@ export function useDataFetchers(srcURL: string, initialFetchers: DataFetcher<any
       } catch (e) {
         if (!cancelled) {
           if (e instanceof InvalidSessionError) {
-            window.location.href = `/api/auth/login?redirect=${encodeURI(srcURL)}`
+            window.location.href = `/api/auth/login?redirect=${encodeURI(window.location.href)}`
             return
           }
           setState({ ...state, isLoading: false, error: e, completed: true })
