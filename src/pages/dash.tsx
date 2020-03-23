@@ -8,6 +8,7 @@ import { GameInfo, Player } from "../types/model";
 import { createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { getInitialPropsRequireAuth } from "../util/gipAuth";
 import { ensureResponseOk } from "../util/util";
+import { PrimaryButton } from "../components/Button";
 
 interface DashPageProps {
   myPlayer: Player
@@ -33,7 +34,7 @@ const DashPage: NextPage<DashPageProps> = ({ myPlayer, myGames }) => {
     <Layout>
       <h1>Dashboard</h1>
       <p>Hello, <b>{myPlayer.name}</b></p>
-      <button onClick={newGame} disabled={createGameState.isLoading || !!createGameState.data}>Create new game</button>
+      <PrimaryButton onClick={newGame} disabled={createGameState.isLoading || !!createGameState.data}>Create new game</PrimaryButton>
       <h2>Your games:</h2>
       <ol className='games-list'>
         {myGames.map(g => (

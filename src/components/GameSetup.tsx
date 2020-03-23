@@ -3,6 +3,7 @@ import { PutPlayerRequest } from "../types/api";
 import { GamePlayer, GameType, Player, PlayerType, Team } from "../types/model";
 import { createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { playersByPosition } from "../util/util";
+import { PrimaryButton } from "./Button";
 import { useGameContext } from "./GameContext";
 
 interface ChoiceButtonProps {
@@ -121,9 +122,9 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
       </div>
       {!isMyGame ? undefined : (
         <div className='start-buttons'>
-          <button onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</button>
+          <PrimaryButton onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</PrimaryButton>
           {' '}
-          <button onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</button>
+          <PrimaryButton onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</PrimaryButton>
         </div>
       )}
       <style jsx>
