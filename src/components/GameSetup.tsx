@@ -1,40 +1,40 @@
 import { FunctionComponent, SyntheticEvent } from "react";
 import { PutPlayerRequest } from "../types/api";
-import { Game, GamePlayer, GameType, Player, PlayerType, Team } from "../types/model";
-import { createDataSender, useDataFetcher, useDataFetchers } from "../util/dataFetcher";
+import { GamePlayer, GameType, Player, PlayerType, Team } from "../types/model";
+import { createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { playersByPosition } from "../util/util";
+import { useGameContext } from "./GameContext";
 
 interface ChoiceButtonProps {
   team: Team
   playerType: PlayerType
   player?: GamePlayer
-  myPlayer?: Player
-  gameID?: number
-  disabled?: boolean
+  myPlayer: Player
 }
-const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, player, gameID, myPlayer, disabled }) => {
-  const [updateState, setFetchers] = useDataFetchers([], false)
+const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, player, myPlayer }) => {
+  const { game, gameInvalidated, invalidateGame } = useGameContext()
 
-  const isLoading = updateState.isLoading
+  const [, setFetcher] = useDataFetcher(undefined, false)
   const onClick = async () => {
-    setFetchers([createDataSender<{}, PutPlayerRequest>(`${process.env.API_BASE_URL}/api/game/${gameID}/player`, 'PUT', {
+    invalidateGame()
+    setFetcher(createDataSender<{}, PutPlayerRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`, 'PUT', {
       playerType,
       team,
-    })])
+    }))
   }
 
   const isMe = myPlayer && (myPlayer.id === player?.player?.id)
   const playerDisplayName = () => isMe ? <b>{player!.player!.name} (Me)</b> : player!.player!.name
 
-  const clickable = !isLoading && !disabled && !player
+  const clickable = !gameInvalidated && !player
   return (
     <div className={`player-container ${clickable ? 'clickable' : undefined}`} onClick={clickable ? onClick : undefined}>
       <span className='player-type'>
         {playerType === 'codemaster' ? 'CODEMASTER' : 'GUESSER'}
       </span>
-      {!player && !isLoading ? undefined : (
+      {!player && !gameInvalidated ? undefined : (
         <span className='player'>
-          {isLoading ? '...' : playerDisplayName()}
+          {gameInvalidated ? '...' : playerDisplayName()}
         </span>
       )}
       <style jsx>{`
@@ -60,14 +60,13 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
 }
 
 export interface GameSetupProps {
-  game: Game
   myPlayer: Player
 }
-
-export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer }) => {
-  const [startGameState, setStartGameFetcher] = useDataFetcher<{}>(undefined, false)
+export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
+  const { game, gameInvalidated, invalidateGame } = useGameContext()
 
   const [codemaster1, codemaster2, guessers1, guessers2] = playersByPosition(game.players)
+  const isMyGame = myPlayer.id === game.created_by_player_id
 
   let gameType: GameType | undefined = undefined
   if (codemaster1 && codemaster2) {
@@ -78,15 +77,13 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer })
     }
   }
 
-  const gameID = game.id
-  const isMyGame = myPlayer.id === game.created_by_player_id
-
+  const [, setStartGameFetcher] = useDataFetcher<{}>(undefined, false)
   const startGame = (ev: SyntheticEvent) => {
     ev.preventDefault()
-    setStartGameFetcher(createDataSender(`${process.env.API_BASE_URL}/api/game/${gameID}/start`, 'PUT', {}))
+    invalidateGame()
+    setStartGameFetcher(createDataSender(`${process.env.API_BASE_URL}/api/game/${game.id}/start`, 'PUT', {}))
   }
 
-  const disabled = startGameState.isLoading
   return (
     <div>
       <h2>Game setup</h2>
@@ -98,16 +95,12 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer })
             team='1'
             playerType='codemaster'
             player={codemaster1}
-            gameID={gameID}
-            disabled={disabled}
           />
           <ChoiceButton
             myPlayer={myPlayer}
             team='1'
             playerType='guesser'
             player={guessers1[0]}
-            gameID={gameID}
-            disabled={disabled}
           />
         </div>
         <div className='team'>
@@ -117,24 +110,20 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer })
             team='2'
             playerType='codemaster'
             player={codemaster2}
-            gameID={gameID}
-            disabled={disabled}
           />
           <ChoiceButton
             myPlayer={myPlayer}
             team='2'
             playerType='guesser'
             player={guessers2[0]}
-            gameID={gameID}
-            disabled={disabled}
           />
         </div>
       </div>
       {!isMyGame ? undefined : (
         <div className='start-buttons'>
-          <button onClick={startGame} disabled={startGameState.isLoading || gameType !== '2player'}>Start 2 player game</button>
+          <button onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</button>
           {' '}
-          <button onClick={startGame} disabled={startGameState.isLoading || gameType !== '4player'}>Start 4 player game</button>
+          <button onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</button>
         </div>
       )}
       <style jsx>
@@ -142,7 +131,6 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer })
           .start-buttons {
             margin-top: 20px;
           }
-
           .game-setup-container {
             display: grid;
             grid-column-gap: 30px;

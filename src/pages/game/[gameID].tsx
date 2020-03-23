@@ -1,25 +1,22 @@
 import fetch from 'isomorphic-unfetch';
 import { NextPage, NextPageContext } from "next";
-import { useRouter } from 'next/router';
-import { useEffect, useState } from "react";
+import { useEffect, useState, FunctionComponent } from "react";
 import socketIO from 'socket.io-client';
 import { GamePlay } from "../../components/GamePlay";
 import { GameSetup } from "../../components/GameSetup";
 import { Layout } from "../../components/Layout";
-import { GetGameResult, GetMeResult } from "../../types/api";
-import { GameChangeV2Notification, Game, Player } from "../../types/model";
+import { GetGameResult } from "../../types/api";
+import { Game, GameChangeV2Notification, Player } from "../../types/model";
 import { createDataFetcher, DataFetcher, useDataFetcher } from "../../util/dataFetcher";
-import { ensureResponseOk } from '../../util/util';
-import { InvalidSessionError } from '../../util/errors';
 import { getInitialPropsRequireAuth } from "../../util/gipAuth";
+import { ensureResponseOk } from '../../util/util';
+import { GameContextProvider, useGameContext } from "../../components/GameContext";
 
-interface GameSetupPageProps {
+interface GameSetupPageWithCtxProps {
   myPlayer: Player
-  initialGame: Game
 }
-
-const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) => {
-  const [game, setGame] = useState(initialGame)
+const GameSetupPageWithCtx: FunctionComponent<GameSetupPageWithCtxProps> = ({ myPlayer }) => {
+  const { game, invalidateGame, setGame } = useGameContext()
 
   const createGameFetcher = (): DataFetcher<GetGameResult> =>
     createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${game.id}`)
@@ -35,6 +32,7 @@ const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) 
     const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
 
     io.on(`gameChange:${game.id}`, () => {
+      invalidateGame()
       setFetcher(createGameFetcher())
     })
 
@@ -57,12 +55,22 @@ const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) 
     <Layout>
       <h1>Codenames</h1>
       {game.is_started ?
-        <GamePlay game={game} myPlayer={myPlayer} /> :
-        <GameSetup game={game} myPlayer={myPlayer} />
+        <GamePlay myPlayer={myPlayer} /> :
+        <GameSetup myPlayer={myPlayer} />
       }
     </Layout>
   )
 }
+
+interface GameSetupPageProps {
+  myPlayer: Player
+  initialGame: Game
+}
+const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) => (
+  <GameContextProvider initialGame={initialGame}>
+    <GameSetupPageWithCtx myPlayer={myPlayer} />
+  </GameContextProvider>
+)
 
 GameSetupPage.getInitialProps = getInitialPropsRequireAuth(async (ctx: NextPageContext, player: Player, fetchOpts: RequestInit): Promise<GameSetupPageProps> => {
   const gameRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/game/${ctx.query.gameID}`, fetchOpts))

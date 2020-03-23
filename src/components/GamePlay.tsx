@@ -1,25 +1,32 @@
-import { FunctionComponent, SyntheticEvent, useState } from "react";
+import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
-import { Game, GameBoardCell, GameTurn, Player, SpecCardCell } from "../types/model";
+import { Game, GameBoardCell, GameTurn, Player, SpecCardCell, Team } from "../types/model";
 import { TWO_PLAYER_TURNS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { capitalize, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
+import { useGameContext } from "./GameContext";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
 const cellKey = (c: { row: number, col: number }): string => `${c.row}:${c.col}`
 
-interface CodeMasterHintInputViewProps {
-  game: Game
-}
-const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = ({ game }) => {
+interface CodeMasterHintInputViewProps { }
+const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
+  const { game, gameInvalidated, invalidateGame, validateGame } = useGameContext()
+
   const [setHintState, setFetcher] = useDataFetcher(undefined, false)
+  useEffect(() => {
+    if (setHintState.error) {
+      validateGame()
+    }
+  }, [setHintState.error])
 
   const [hint, setHint] = useState('')
   const [hintNum, setHintNum] = useState('1')
 
   const submitHint = (ev: SyntheticEvent) => {
     ev.preventDefault()
+    invalidateGame()
     setFetcher(createDataSender<{}, PutHintRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}}/hint`, 'PUT', {
       turnNum: game.current_turn_num!,
       hint: hint.trim(),
@@ -41,7 +48,7 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
           placeholder='Hint'
           className={invalidHintError ? 'error' : ''}
           value={hint}
-          disabled={setHintState.isLoading}
+          disabled={gameInvalidated}
           onChange={ev => {
             setHint(ev.target.value);
             setFetcher(undefined);
@@ -50,11 +57,11 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
       </label>
       <label htmlFor='hintNum'>
         Amount:
-        <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={setHintState.isLoading}>
+        <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={gameInvalidated}>
           {HINT_NUM_RANGE.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
       </label>
-      <button type='submit' onClick={submitHint} disabled={setHintState.isLoading || invalidHint}>Submit hint</button>
+      <button type='submit' onClick={submitHint} disabled={gameInvalidated || invalidHint}>Submit hint</button>
     </div>
   )
 }
@@ -87,10 +94,10 @@ const SpectatorView: FunctionComponent<SpectatorViewProps> = ({ currentTurn }) =
 )
 
 interface GameOverViewProps {
-  game: Game
+  winning_team?: Team
 }
-const GameOverView: FunctionComponent<GameOverViewProps> = ({ game }) => {
-  if (game.winning_team) {
+const GameOverView: FunctionComponent<GameOverViewProps> = ({ winning_team }) => {
+  if (winning_team) {
     return (
       <h2 className='celebration'>
         YOU WON!!
@@ -137,10 +144,11 @@ const TurnsView: FunctionComponent<TurnsViewProps> = ({ turnNum }) => (
 )
 
 export interface GamePlayProps {
-  game: Game
   myPlayer: Player
 }
-export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) => {
+export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
+  const { game, gameInvalidated, invalidateGame } = useGameContext()
+
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
 
   const isCodeMaster = myGamePlayer.player_type === 'codemaster'
@@ -157,9 +165,10 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) =
   const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
   const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
-  const [guessState, setGuessFetcher] = useDataFetcher(undefined, false)
+  const [, setGuessFetcher] = useDataFetcher(undefined, false)
   const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
     ev.preventDefault()
+    invalidateGame()
     setGuessFetcher(createDataSender<{}, PutGuessRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/guess`, 'PUT', {
       turnNum: currentTurn.turn_num,
       guessNum: currentTurn.guesses.length,
@@ -170,6 +179,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) =
 
   const onPass = (ev: SyntheticEvent) => {
     ev.preventDefault()
+    invalidateGame()
     setGuessFetcher(createDataSender<{}, PutPassRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/pass`, 'PUT', { turnNum: currentTurn.turn_num }))
   }
 
@@ -177,7 +187,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) =
   return (
     <div>
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
-        {game.game_over ? <GameOverView game={game} /> : undefined}
+        {game.game_over ? <GameOverView winning_team={game.winning_team} /> : undefined}
         <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
           {game.board.map(cell => {
             const key = cellKey(cell)
@@ -187,7 +197,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) =
             const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
             const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
-            const clickable = !guessState.isLoading && isGuessing && (!cell.covered || isOtherCitizenCover)
+            const clickable = !gameInvalidated && isGuessing && (!cell.covered || isOtherCitizenCover)
             return (
               <li
                 key={key}
@@ -214,12 +224,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ game, myPlayer }) =
         </ol>
         {game.game_type === '2player' ? <TurnsView turnNum={currentTurn.turn_num} /> : undefined}
       </div>
-      {isGuessing ? <button onClick={onPass} disabled={guessState.isLoading || isLastTurn}>Pass</button> : undefined}
+      {isGuessing ? <button onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</button> : undefined}
       {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
       <hr />
       {!game.game_over ?
         isCodeMaster && isMyTurn && !currentTurn.hint_word ?
-          <CodeMasterHintInputView game={game} /> :
+          <CodeMasterHintInputView /> :
           <SpectatorView currentTurn={currentTurn} />
         : undefined
       }

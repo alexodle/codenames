@@ -1,8 +1,7 @@
 import { CellCoverEvent, Game, GameEvent, GamePlayer, Guess, Team, TeamBoardSpec, TEAMS } from "../types/model";
+import { TWO_PLAYER_TURNS } from "../util/constants";
 import { InvalidRequestError } from "../util/errors";
 import { getCellIdx, getCellKey, getOtherTeam, keyBy } from "../util/util";
-import { TWO_PLAYER_TURNS } from "../util/constants";
-import next from "next";
 
 export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], player: GamePlayer, guess: Guess): GameEvent[] => {
   const results: GameEvent[] = []
