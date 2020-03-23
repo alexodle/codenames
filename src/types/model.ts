@@ -26,18 +26,20 @@ export type CellType = 'citizen' | 'agent' | 'assassin'
 
 export interface GameInfo {
   id: number
-  is_started: boolean
+  created_on: Date
   created_by_player_id: number
+  is_started: boolean
   current_turn_num?: number
   game_type?: GameType
   winning_team?: Team
   game_over: boolean
-  players: GamePlayer[]
+  n_players: number
 }
 
 export interface Game extends GameInfo {
   currentTurn?: GameTurn
   board: GameBoardCell[]
+  players: GamePlayer[]
 }
 
 export interface Player {

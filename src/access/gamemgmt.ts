@@ -11,20 +11,36 @@ export const createGame = async (player: Player): Promise<number> => {
   return (result.rows[0] as any).id as number
 }
 
+export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
+  const result = await query<GameInfo>(`
+    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over, COUNT(game_player.player_id) n_players
+    FROM game
+    LEFT JOIN game_player ON game.id = game_player.game_id
+    WHERE
+      created_by_player_id = $1 AND
+      game_over = false
+    GROUP BY id
+    ORDER BY created_on DESC
+    LIMIT 10;
+    `, [playerID])
+  result.rows.forEach(r => { r.is_started = !!r.game_type })
+  return result.rows
+}
+
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   const result = await query<GameInfo>(`
-    SELECT id, created_by_player_id, current_turn_num, game_type, winning_team, game_over
+    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over, COUNT(game_player.player_id) n_players
     FROM game
+    LEFT JOIN game_player ON game.id = game_player.game_id
     WHERE id = $1
+    GROUP BY id
     LIMIT 1;`, [gameID])
   if (!result.rows.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
   }
+
   const game = result.rows[0]
   game.is_started = !!game.game_type
-
-  const players = await getGamePlayers(gameID)
-  game.players = players
 
   return game
 }
@@ -32,26 +48,16 @@ export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
 export const getGame = async (gameID: number): Promise<Game> => {
   const game = await getGameInfo(gameID) as Game
 
-  const [board, currentTurn] = await Promise.all([
+  const [board, players, currentTurn] = await Promise.all([
     getGameBoard(gameID),
+    getGamePlayers(gameID),
     game.is_started ? getTurn(gameID, game.current_turn_num!) : undefined])
 
   game.board = board
+  game.players = players
   game.currentTurn = currentTurn
 
   return game
-}
-
-export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
-  const result = await query<GameInfo>(`
-    SELECT id, created_by_player_id, game_type, winning_team
-    FROM game
-    WHERE
-      created_by_player_id = $1 AND
-      winning_team IS NULL;
-    `, [playerID])
-  result.rows.forEach(r => { r.is_started = !!r.game_type })
-  return result.rows
 }
 
 export const getGamePlayers = async (gameID: number): Promise<GamePlayer[]> => {

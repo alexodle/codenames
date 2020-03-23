@@ -11,6 +11,7 @@ import { GameChangeV2Notification, Game, Player } from "../../types/model";
 import { createDataFetcher, DataFetcher, useDataFetcher } from "../../util/dataFetcher";
 import { ensureResponseOk } from '../../util/util';
 import { InvalidSessionError } from '../../util/errors';
+import { getInitialPropsRequireAuth } from "../../util/gipAuth";
 
 interface GameSetupPageProps {
   myPlayer: Player
@@ -63,31 +64,11 @@ const GameSetupPage: NextPage<GameSetupPageProps> = ({ myPlayer, initialGame }) 
   )
 }
 
-GameSetupPage.getInitialProps = async (ctx: NextPageContext) => {
-  const opts: RequestInit = { credentials: 'same-origin' }
-  if (typeof window === 'undefined') {
-    opts.headers = { cookie: ctx.req?.headers.cookie! }
-  }
-
-  try {
-    const meRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/me`, opts))
-    const gameRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/game/${ctx.query.gameID}`))
-    const meResult: GetMeResult = await meRes.json()
-    const gameResult: GetGameResult = await gameRes.json()
-
-    const ret: GameSetupPageProps = { myPlayer: meResult.player, initialGame: gameResult.game }
-    return ret
-  } catch (e) {
-    if (e instanceof InvalidSessionError) {
-      if (typeof window === 'undefined') {
-        ctx.res!.writeHead(302, { Location: `/api/auth/login?redirect=${encodeURIComponent(`${process.env.BASE_URL}${ctx.req!.url!}`)}` }).end()
-      } else {
-        window.location.href = `/api/auth/login?redirect=${encodeURIComponent(window.location.href)}`
-      }
-      return {} as GameSetupPageProps
-    }
-    throw e
-  }
-}
+GameSetupPage.getInitialProps = getInitialPropsRequireAuth(async (ctx: NextPageContext, player: Player, fetchOpts: RequestInit): Promise<GameSetupPageProps> => {
+  const gameRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/game/${ctx.query.gameID}`, fetchOpts))
+  const gameResult: GetGameResult = await gameRes.json()
+  const ret: GameSetupPageProps = { myPlayer: player, initialGame: gameResult.game }
+  return ret
+})
 
 export default GameSetupPage
