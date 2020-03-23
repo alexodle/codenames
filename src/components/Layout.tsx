@@ -41,6 +41,7 @@ export const Layout: FunctionComponent = ({ children }) => (
       color: red;
       font-weight: normal;
     }
+
     label {
       display: block;
       margin-bottom: 20px;
@@ -48,11 +49,14 @@ export const Layout: FunctionComponent = ({ children }) => (
       font-weight: bold;
       font-size: 120%;
     }
+
     button {
-      cursor: pointer;
       background-color: #D3D3D3;
     }
-    button:hover {
+    button:enabled {
+      cursor: pointer;
+    }
+    button:enabled:hover {
       background-color: #BEBEBE;
     }
     `}</style>

@@ -57,7 +57,7 @@ export function useDataFetchers(initialFetchers: DataFetcher<any>[], initialIsLo
       } catch (e) {
         if (!cancelled) {
           if (e instanceof InvalidSessionError) {
-            window.location.href = `/api/auth/login?redirect=${encodeURI(window.location.href)}`
+            window.location.href = `/api/auth/login?redirect=${encodeURIComponent(window.location.href)}`
             return
           }
           setState({ ...state, isLoading: false, error: e, completed: true })

@@ -1,9 +1,9 @@
-import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
-import { GetGamePlayerViewRequest, PutHintRequest, PutGuessRequest, PutPassRequest } from "../types/api";
-import { Game, Player, SpecCardCell, GameTurn, GameBoardCell } from "../types/model";
-import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { keyBy, getOtherTeam, capitalize, isValidHintQuick, range } from "../util/util";
+import { FunctionComponent, SyntheticEvent, useState } from "react";
+import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
+import { Game, GameBoardCell, GameTurn, Player, SpecCardCell } from "../types/model";
 import { TWO_PLAYER_TURNS } from "../util/constants";
+import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
+import { capitalize, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
@@ -28,13 +28,25 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
   }
 
   const wordConflict = setHintState.error?.message.startsWith('InvalidHint')
-  const invalidHint = hint.length > 0 && (wordConflict || !isValidHintQuick(hint))
+  const invalidHint = wordConflict || !isValidHintQuick(hint)
+  const invalidHintError = hint.length && invalidHint
   return (
     <div className='codemaster-input'>
       <label htmlFor='hint'>
         Hint:
-        {invalidHint ? <span className='input-error'>Invalid hint{wordConflict ? ' - too close to a word on the board' : undefined}</span> : undefined}
-        <input id='hint' name='hint' placeholder='Hint' value={hint} onChange={ev => { setHint(ev.target.value); setFetcher(undefined); }} disabled={setHintState.isLoading} className={invalidHint ? 'error' : ''} />
+        {invalidHintError ? <span className='input-error'>Invalid hint{wordConflict ? ' - too close to a word on the board' : undefined}</span> : undefined}
+        <input
+          id='hint'
+          name='hint'
+          placeholder='Hint'
+          className={invalidHintError ? 'error' : ''}
+          value={hint}
+          disabled={setHintState.isLoading}
+          onChange={ev => {
+            setHint(ev.target.value);
+            setFetcher(undefined);
+          }}
+        />
       </label>
       <label htmlFor='hintNum'>
         Amount:

@@ -132,9 +132,9 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ game, myPlayer })
       </div>
       {!isMyGame ? undefined : (
         <div className='start-buttons'>
-          <button onClick={startGame} disabled={!startGameState.isLoading && gameType !== '2player'}>Start 2 player game</button>
+          <button onClick={startGame} disabled={startGameState.isLoading || gameType !== '2player'}>Start 2 player game</button>
           {' '}
-          <button onClick={startGame} disabled={!startGameState.isLoading && gameType !== '4player'}>Start 4 player game</button>
+          <button onClick={startGame} disabled={startGameState.isLoading || gameType !== '4player'}>Start 4 player game</button>
         </div>
       )}
       <style jsx>

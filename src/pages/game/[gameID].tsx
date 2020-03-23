@@ -72,7 +72,6 @@ GameSetupPage.getInitialProps = async (ctx: NextPageContext) => {
   try {
     const meRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/me`, opts))
     const gameRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/game/${ctx.query.gameID}`))
-
     const meResult: GetMeResult = await meRes.json()
     const gameResult: GetGameResult = await gameRes.json()
 
@@ -81,10 +80,11 @@ GameSetupPage.getInitialProps = async (ctx: NextPageContext) => {
   } catch (e) {
     if (e instanceof InvalidSessionError) {
       if (typeof window === 'undefined') {
-        ctx.res!.writeHead(302, { Location: `/api/auth/login?redirect=${encodeURI(`${process.env.BASE_URL}${ctx.req!.url!}`)}` })
+        ctx.res!.writeHead(302, { Location: `/api/auth/login?redirect=${encodeURIComponent(`${process.env.BASE_URL}${ctx.req!.url!}`)}` }).end()
       } else {
-        window.location.href = `/api/auth/login?redirect=${encodeURI(window.location.href)}`
+        window.location.href = `/api/auth/login?redirect=${encodeURIComponent(window.location.href)}`
       }
+      return {} as GameSetupPageProps
     }
     throw e
   }
