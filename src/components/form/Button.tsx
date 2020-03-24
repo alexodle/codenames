@@ -1,8 +1,9 @@
 import { FunctionComponent } from "react";
-import { useThemeContext } from "./ThemeContext";
+import { useThemeContext } from "../ThemeContext";
 
 export interface ButtonProps {
   type?: 'primary' | 'secondary'
+  className?: string;
   disabled?: boolean
   onClick?(ev: React.MouseEvent): void
 }

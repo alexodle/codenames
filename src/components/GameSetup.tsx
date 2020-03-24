@@ -3,7 +3,7 @@ import { PutPlayerRequest } from "../types/api";
 import { GamePlayer, GameType, Player, PlayerType, Team } from "../types/model";
 import { createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { playersByPosition } from "../util/util";
-import { PrimaryButton } from "./Button";
+import { PrimaryButton } from "./form/Button";
 import { useGameContext } from "./GameContext";
 
 interface ChoiceButtonProps {

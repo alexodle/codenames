@@ -3,9 +3,9 @@
 import fetch from 'isomorphic-unfetch';
 import { NextPage, NextPageContext } from 'next';
 import { PostGameResult } from '../../types/api';
-import { ensureResponseOk } from '../../util/util';
-import { getInitialPropsRequireAuth } from '../../util/gipAuth';
 import { Player } from '../../types/model';
+import { getInitialPropsRequireAuth } from '../../util/gipAuth';
+import { ensureResponseOk } from '../../util/util';
 
 const NewGame: NextPage = () => (<span />)
 

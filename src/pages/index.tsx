@@ -3,7 +3,7 @@ import { NextPage, NextPageContext } from "next";
 import Link from 'next/link';
 import { useRouter } from "next/router";
 import { FunctionComponent, SyntheticEvent, useEffect } from "react";
-import { PrimaryButton } from "../components/Button";
+import { PrimaryButton } from "../components/form/Button";
 import { Layout } from "../components/Layout";
 import { PlayerContextProvider, usePlayerContext } from "../components/PlayerContext";
 import { GetMeResult, GetMyGamesResult, PostGameResult } from "../types/api";

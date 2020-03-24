@@ -1,14 +1,14 @@
-import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
+import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
-import { Game, GameBoardCell, GameTurn, Player, SpecCardCell, Team } from "../types/model";
+import { GameBoardCell, GameTurn, Player, SpecCardCell, Team } from "../types/model";
 import { TWO_PLAYER_TURNS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { capitalize, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
+import { capitalize, getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
+import { Input, Label, Option, PrimaryButton, Select } from "./form";
 import { useGameContext } from "./GameContext";
+import { WordCard } from "./WordCard"
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
-
-const cellKey = (c: { row: number, col: number }): string => `${c.row}:${c.col}`
 
 interface CodeMasterHintInputViewProps { }
 const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
@@ -36,17 +36,18 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
 
   const wordConflict = setHintState.error?.message.startsWith('InvalidHint')
   const invalidHint = wordConflict || !isValidHintQuick(hint)
-  const invalidHintError = hint.length && invalidHint
+  const invalidHintError = !!hint.length && invalidHint
   return (
     <div className='codemaster-input'>
-      <label htmlFor='hint'>
+      <Label htmlFor='hint'>
         Hint:
         {invalidHintError ? <span className='input-error'>Invalid hint{wordConflict ? ' - too close to a word on the board' : undefined}</span> : undefined}
-        <input
+        <Input
           id='hint'
           name='hint'
           placeholder='Hint'
-          className={invalidHintError ? 'error' : ''}
+          className='hint-input'
+          error={invalidHintError}
           value={hint}
           disabled={gameInvalidated}
           onChange={ev => {
@@ -54,14 +55,31 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
             setFetcher(undefined);
           }}
         />
-      </label>
-      <label htmlFor='hintNum'>
+      </Label>
+      <Label htmlFor='hintNum'>
         Amount:
-        <select id='hintNum' name='hintNum' value={hintNum} onChange={ev => setHintNum(ev.target.value)} disabled={gameInvalidated}>
-          {HINT_NUM_RANGE.map(n => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
-      <button type='submit' onClick={submitHint} disabled={gameInvalidated || invalidHint}>Submit hint</button>
+        <Select
+          id='hintNum'
+          name='hintNum'
+          className='hint-input'
+          value={hintNum}
+          disabled={gameInvalidated}
+          onChange={ev => setHintNum(ev.target.value)}
+        >
+          {HINT_NUM_RANGE.map(n => <Option key={n} value={n}>{n}</Option>)}
+        </Select>
+      </Label>
+      <PrimaryButton className='submit-hint-btn' onClick={submitHint} disabled={gameInvalidated || invalidHint}>Submit hint</PrimaryButton>
+      <style>
+        {`
+          .submit-hint-btn {
+            width: 100%;
+          }
+          .hint-input {
+            width: 100%;
+          }
+        `}
+      </style>
     </div>
   )
 }
@@ -157,12 +175,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
   let cellSpecs: { [key: string]: SpecCardCell }
   if (codemasterViewState.data) {
-    cellSpecs = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, cellKey)
+    cellSpecs = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, getCellKey)
   }
 
   const currentTurn = game.currentTurn!
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
-  const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && currentTurn.hint_word
+  const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && !!currentTurn.hint_word
   const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
   const [, setGuessFetcher] = useDataFetcher(undefined, false)
@@ -190,7 +208,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
         {game.game_over ? <GameOverView winning_team={game.winning_team} /> : undefined}
         <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
           {game.board.map(cell => {
-            const key = cellKey(cell)
+            const key = getCellKey(cell)
             const cellSpec = cellSpecs && cellSpecs[key]
 
             const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
@@ -199,10 +217,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
             const clickable = !gameInvalidated && isGuessing && (!cell.covered || isOtherCitizenCover)
             return (
-              <li
+              <WordCard
                 key={key}
-                className={`board-cell ${clickable ? 'clickable' : ''} ${codemasterViewState.isLoading ? 'codemaster-loading' : ''}`}
-                onClick={clickable ? ev => onCellClick(ev, cell) : undefined}
+                word={cell.word}
+                clickable={clickable}
+                onClick={ev => onCellClick(ev, cell)}
               >
                 {cellSpec && cellSpec.cell_type !== 'citizen' ? (
                   <span className={`cell-type ${cellSpec.cell_type || ''}`}>
@@ -216,15 +235,13 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
                 {isMyCitizenCover ? <span className={`partial-cover cover-citizen-mine`}>YOU</span> : undefined}
                 {isOtherCitizenCover ? <span className={`partial-cover cover-citizen-other`}>THEM</span> : undefined}
-
-                <span className='cell-word'>{cell.word}</span>
-              </li>
+              </WordCard>
             )
           })}
         </ol>
         {game.game_type === '2player' ? <TurnsView turnNum={currentTurn.turn_num} /> : undefined}
       </div>
-      {isGuessing ? <button onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</button> : undefined}
+      {isGuessing ? <PrimaryButton onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</PrimaryButton> : undefined}
       {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
       <hr />
       {!game.game_over ?
@@ -256,17 +273,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
           }
           .board.game-over {
             background-color: #E8E8E8;
-          }
-          .board-cell {
-            border: 1px solid gray;
-            border-radius: 10px;
-            text-align: center;
-            height: 100px;
-            position: relative;
-            overflow: hidden;
-          }
-          .cell-word {
-            line-height: 100px;
           }
           .codemaster-loading {
             background-color: #E8E8E8;

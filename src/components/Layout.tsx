@@ -35,18 +35,6 @@ export const Layout: FunctionComponent = ({ children }) => (
             cursor: pointer;
           }
 
-          input, select {
-            font-size: 130%;
-            border: 1px solid gray;
-            border-radius: 5px;
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            outline: none;
-          }
-          input.error {
-            border: 1px solid red;
-          }
           .input-error {
             display: block;
             margin-top: 5px;
