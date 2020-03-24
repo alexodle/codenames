@@ -1,7 +1,7 @@
 import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
 import { GameBoardCell, GameTurn, Player, SpecCardCell, Team } from "../types/model";
-import { TWO_PLAYER_TURNS } from "../util/constants";
+import { TWO_PLAYER_TURNS, COLS, ROWS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { capitalize, getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
 import { Input, Label, Option, PrimaryButton, Select } from "./form";
@@ -9,6 +9,8 @@ import { useGameContext } from "./GameContext";
 import { WordCard } from "./WordCard"
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
+
+const RANDOM_ANIM_SECONDS = range(ROWS * COLS).map(() => Math.random() * 0.5 + 0.2)
 
 interface CodeMasterHintInputViewProps { }
 const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
@@ -168,7 +170,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const { game, gameInvalidated, invalidateGame } = useGameContext()
 
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
-
   const isCodeMaster = myGamePlayer.player_type === 'codemaster'
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
   const [codemasterViewState] = useDataFetcher(codemasterDataFetcher, isCodeMaster)
@@ -207,7 +208,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
         {game.game_over ? <GameOverView winning_team={game.winning_team} /> : undefined}
         <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
-          {game.board.map(cell => {
+          {game.board.map((cell, i) => {
             const key = getCellKey(cell)
             const cellSpec = cellSpecs && cellSpecs[key]
 
@@ -221,6 +222,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
                 key={key}
                 word={cell.word}
                 clickable={clickable}
+                animationSeconds={RANDOM_ANIM_SECONDS[i]}
                 onClick={ev => onCellClick(ev, cell)}
               >
                 {cellSpec && cellSpec.cell_type !== 'citizen' ? (
