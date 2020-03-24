@@ -1,17 +1,17 @@
+import fetch from 'isomorphic-unfetch';
 import { NextPage, NextPageContext } from "next";
 import Link from 'next/link';
 import { useRouter } from "next/router";
-import { SyntheticEvent, useEffect, FunctionComponent } from "react";
+import { FunctionComponent, SyntheticEvent, useEffect } from "react";
 import { PrimaryButton } from "../components/Button";
 import { Layout } from "../components/Layout";
-import { PostGameResult, GetMyGamesResult, GetMeResult } from "../types/api";
-import { createDataSender, useDataFetcher, createDataFetcher } from "../util/dataFetcher";
-import { usePlayerContext, PlayerContextProvider } from "../components/PlayerContext"
+import { PlayerContextProvider, usePlayerContext } from "../components/PlayerContext";
+import { GetMeResult, GetMyGamesResult, PostGameResult } from "../types/api";
 import { Player } from "../types/model";
-import { ensureResponseOk } from "../util/util";
-import fetch from 'isomorphic-unfetch';
+import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { InvalidSessionError } from "../util/errors";
 import { getFetchOpts } from "../util/gipAuth";
+import { ensureResponseOk } from "../util/util";
 
 const DashPageContents: FunctionComponent = () => {
   const router = useRouter()
@@ -33,7 +33,12 @@ const DashPageContents: FunctionComponent = () => {
 
   const newGame = (ev: SyntheticEvent) => {
     ev.preventDefault()
-    setCreateGameFetcher(createDataSender<PostGameResult, {}>(`${process.env.API_BASE_URL}/api/game`, 'POST', {}))
+    if (!player) {
+      const createGameRedirect = `${process.env.BASE_URL}/game/new`
+      window.location.href = `${process.env.API_BASE_URL}/api/auth/login?redirect=${encodeURIComponent(createGameRedirect)}`
+    } else {
+      setCreateGameFetcher(createDataSender<PostGameResult, {}>(`${process.env.API_BASE_URL}/api/game`, 'POST', {}))
+    }
   }
 
   return (
@@ -44,7 +49,7 @@ const DashPageContents: FunctionComponent = () => {
         <p>Welcome, gamer</p>}
 
       <h2>Start a new game</h2>
-      <PrimaryButton onClick={newGame} disabled={createGameState.isLoading || !!createGameState.data}>Create new game</PrimaryButton>
+      <PrimaryButton onClick={newGame} disabled={createGameState.isLoading || !!createGameState.data}>Start a new game</PrimaryButton>
       {myGamesState.isLoading || myGamesState.data ? (
         <>
           <h2>Or, continue an old game:</h2>

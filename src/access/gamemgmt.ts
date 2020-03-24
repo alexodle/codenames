@@ -1,5 +1,5 @@
 import { random, sample, sampleSize, shuffle } from "lodash"
-import { query, withTransaction } from "../db"
+import { Client, query, withTransaction } from "../db"
 import { Game, GameBoardCell, GameInfo, GamePlayer, GameTurn, GameType, Guess, Player, PlayerType, SpecCardSide, Team, TEAMS } from "../types/model"
 import { COLS, ROWS } from "../util/constants"
 import { InvalidRequestError, NotFoundError } from "../util/errors"
@@ -7,8 +7,14 @@ import { playersByPosition } from "../util/util"
 import { ensureUpdated } from "./util"
 
 export const createGame = async (player: Player): Promise<number> => {
-  const result = await query('INSERT INTO game(created_by_player_id) VALUES($1) RETURNING id;', [player.id,])
-  return (result.rows[0] as any).id as number
+  let gameID: number | undefined = undefined
+  await withTransaction(async client => {
+    const gameResult = await client.query<{ id: number }>('INSERT INTO game(created_by_player_id) VALUES($1) RETURNING id;', [player.id,])
+    gameID = gameResult.rows[0].id
+
+    await addPlayerToGameImpl(gameID, player.id, '1', 'codemaster', client)
+  })
+  return gameID!
 }
 
 export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
@@ -129,16 +135,19 @@ export const startGame = async (gameID: number) => {
   query(`NOTIFY gameChange, '${gameID}';`, [])
 }
 
-export const addPlayerToGame = async (gameID: number, playerID: number, team: Team, playerType: PlayerType) => {
+const addPlayerToGameImpl = async (gameID: number, playerID: number, team: Team, playerType: PlayerType, client: Client) => {
   // TODO: ensure game hasn't started yet
+  client.query(`DELETE FROM game_player WHERE game_id = $1 AND player_id = $2;`, [gameID, playerID])
+  if (playerType === 'codemaster') {
+    client.query(`DELETE FROM game_player WHERE game_id = $1 AND team = $2 AND player_type = 'codemaster';`, [gameID, team])
+  }
+  client.query(`INSERT INTO game_player(game_id, player_id, team, player_type) VALUES($1, $2, $3, $4);`, [gameID, playerID, team, playerType])
+}
+
+export const addPlayerToGame = async (gameID: number, playerID: number, team: Team, playerType: PlayerType) => {
   await withTransaction(async client => {
-    client.query(`DELETE FROM game_player WHERE game_id = $1 AND player_id = $2;`, [gameID, playerID])
-    if (playerType === 'codemaster') {
-      client.query(`DELETE FROM game_player WHERE game_id = $1 AND team = $2 AND player_type = 'codemaster';`, [gameID, team])
-    }
-    client.query(`INSERT INTO game_player(game_id, player_id, team, player_type) VALUES($1, $2, $3, $4);`, [gameID, playerID, team, playerType])
+    await addPlayerToGameImpl(gameID, playerID, team, playerType, client)
   })
-  // TODO: rely on postgres triggers
   query(`NOTIFY gameChange, '${gameID}';`, [])
 }
 
