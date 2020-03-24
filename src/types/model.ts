@@ -142,12 +142,18 @@ export type GameOverEvent = {
   winner?: Team
 }
 
+export interface GameChangeV2Notification {
+  gameID: number
+  events: GameEvent[]
+}
+
 export interface Auth0User {
   sub: string
   name: string
 }
 
-export interface GameChangeV2Notification {
-  gameID: number
-  events: GameEvent[]
+export interface LoginState {
+  nonce: string
+  date_created: Date
+  redirect_url: string
 }

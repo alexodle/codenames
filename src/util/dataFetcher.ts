@@ -31,7 +31,7 @@ export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT', 
 
 export function useDataFetcher<R>(initialFetcher: DataFetcher<R> | undefined, initialIsLoading: boolean): [DataState<R>, (fetcher: DataFetcher<R> | undefined) => void] {
   const [state, setFetchers] = useDataFetchers(initialFetcher ? [initialFetcher] : [], initialIsLoading)
-  const myState = state.data === undefined ? state : { isLoading: false, error: undefined, data: state.data[0] }
+  const myState = state.data === undefined ? state : { ...state, data: state.data[0] }
   return [myState as DataState<R>, (fetcher: DataFetcher<R> | undefined) => setFetchers(fetcher ? [fetcher] : [])]
 }
 

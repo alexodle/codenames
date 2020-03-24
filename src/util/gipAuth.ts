@@ -21,6 +21,14 @@ export const getInitialPropsRequireAuth = <T = {}>(getInitialProps: AuthedGetIni
   }
 }
 
+export const getFetchOpts = (ctx: NextPageContext): RequestInit => {
+  const opts: RequestInit = { credentials: 'same-origin' }
+  if (typeof window === 'undefined') {
+    opts.headers = { cookie: ctx.req?.headers.cookie! }
+  }
+  return opts
+}
+
 const getPlayerInInitialProps = async (ctx: NextPageContext, fetchOpts: RequestInit): Promise<Player | undefined> => {
   try {
     const meRes = await ensureResponseOk(await fetch(`${process.env.API_BASE_URL}/api/me`, fetchOpts))
@@ -41,12 +49,4 @@ const getPlayerInInitialProps = async (ctx: NextPageContext, fetchOpts: RequestI
 
     throw e
   }
-}
-
-const getFetchOpts = (ctx: NextPageContext): RequestInit => {
-  const opts: RequestInit = { credentials: 'same-origin' }
-  if (typeof window === 'undefined') {
-    opts.headers = { cookie: ctx.req?.headers.cookie! }
-  }
-  return opts
 }
