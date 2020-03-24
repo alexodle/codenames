@@ -2,6 +2,14 @@ import { createContext, useContext, FunctionComponent } from "react";
 
 
 const defaultTheme = {
+  agent: {
+    light: '#4caf50',
+    dark: '#4caf50',
+  },
+  assassin: {
+    light: '#808080',
+    dark: '#E8E8E8',
+  },
   palette: {
     primary: {
       light: '#757ce8',

@@ -43,12 +43,21 @@ export const Layout: FunctionComponent = ({ children }) => (
             font-weight: normal;
           }
 
-          label {
-            display: block;
-            margin-bottom: 20px;
-            margin-top: 20px;
-            font-weight: bold;
-            font-size: 120%;
+          .pre-deal-in {
+            transform: translate(-1000px, -1000px);
+          }
+
+          .post-deal-in {
+            animation: dealIn 0.2s;
+          }
+
+          @keyframes dealIn {
+            0% {
+              transform: translate(-1000px, -100px);
+            }
+            100% {
+              transform: translate(0, 0);
+            }
           }
         `}
       </style>

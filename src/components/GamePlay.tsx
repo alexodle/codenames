@@ -7,10 +7,11 @@ import { capitalize, getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } 
 import { Input, Label, Option, PrimaryButton, Select } from "./form";
 import { useGameContext } from "./GameContext";
 import { WordCard } from "./WordCard"
+import { AgentCardLabel, AssassinCardLabel } from "./CardLabel";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
-const RANDOM_ANIM_SECONDS = range(ROWS * COLS).map(() => Math.random() * 0.5 + 0.2)
+const CARD_DEAL_DELAY_MILLIS = 10
 
 interface CodeMasterHintInputViewProps { }
 const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
@@ -174,7 +175,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
   const [codemasterViewState] = useDataFetcher(codemasterDataFetcher, isCodeMaster)
 
-  let cellSpecs: { [key: string]: SpecCardCell }
+  let cellSpecs: { [key: string]: SpecCardCell } | undefined = undefined
+  const specCardCells = codemasterViewState.data?.teamBoardSpec.specCardCells
   if (codemasterViewState.data) {
     cellSpecs = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, getCellKey)
   }
@@ -202,6 +204,49 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
     setGuessFetcher(createDataSender<{}, PutPassRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/pass`, 'PUT', { turnNum: currentTurn.turn_num }))
   }
 
+  const totalCards = ROWS * COLS
+  const [nCardsShown, setNCardsShown] = useState(0)
+  useEffect(() => {
+    const intervalID = setInterval(() => {
+      if (nCardsShown === totalCards) {
+        clearInterval(intervalID)
+        return
+      }
+      setNCardsShown(nCardsShown + 1)
+    }, CARD_DEAL_DELAY_MILLIS)
+    return () => {
+      clearInterval(intervalID)
+    }
+  })
+
+  const [hiddenLabelIdxs, setHiddenLabelIdxs] = useState<number[] | undefined>(undefined)
+  useEffect(() => {
+    if (nCardsShown === totalCards && specCardCells) {
+      const newHiddenLabelIdxs: number[] = []
+      for (let i = 0; i < specCardCells.length; i++) {
+        if (specCardCells[i].cell_type !== 'citizen') {
+          newHiddenLabelIdxs.push(i)
+        }
+      }
+      setHiddenLabelIdxs(newHiddenLabelIdxs)
+    }
+  }, [nCardsShown === totalCards, specCardCells])
+
+  useEffect(() => {
+    if (hiddenLabelIdxs) {
+      const intervalID = setInterval(() => {
+        if (!hiddenLabelIdxs.length) {
+          clearInterval(intervalID)
+          return
+        }
+        setHiddenLabelIdxs(hiddenLabelIdxs.slice(1))
+      }, CARD_DEAL_DELAY_MILLIS)
+      return () => {
+        clearInterval(intervalID)
+      }
+    }
+  }, [hiddenLabelIdxs])
+
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
@@ -217,19 +262,21 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
             const clickable = !gameInvalidated && isGuessing && (!cell.covered || isOtherCitizenCover)
+            const shown = nCardsShown > i
+            const showCardLabel = hiddenLabelIdxs !== undefined && (hiddenLabelIdxs.length == 0 || hiddenLabelIdxs[0] > i)
             return (
               <WordCard
                 key={key}
+                className={shown ? 'post-deal-in' : 'pre-deal-in'}
                 word={cell.word}
                 clickable={clickable}
-                animationSeconds={RANDOM_ANIM_SECONDS[i]}
+                animationDelayMillis={(i + 1) * 20}
                 onClick={ev => onCellClick(ev, cell)}
               >
-                {cellSpec && cellSpec.cell_type !== 'citizen' ? (
-                  <span className={`cell-type ${cellSpec.cell_type || ''}`}>
-                    {cellSpec.cell_type ? capitalize(cellSpec.cell_type) : ''}
-                  </span>
-                ) : undefined}
+                {cellSpec?.cell_type === 'agent' ?
+                  <AgentCardLabel className={showCardLabel ? 'post-deal-in' : 'pre-deal-in'} /> : undefined}
+                {cellSpec?.cell_type === 'assassin' ?
+                  <AssassinCardLabel className={showCardLabel ? 'post-deal-in' : 'pre-deal-in'} /> : undefined}
 
                 {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
 
@@ -271,7 +318,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             padding: 10px;
             border: 1px solid gray;
             border-radius: 10px;
-            overflow: hidden;
           }
           .board.game-over {
             background-color: #E8E8E8;

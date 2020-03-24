@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { isNumber } from "util"
-import { getGameInfo, getTurn, getGame, getGameBoard } from "../../../../access/gamemgmt"
+import { getGameInfo, getTurn, getGame, getGameBoard, getGamePlayers } from "../../../../access/gamemgmt"
 import { setHint } from "../../../../access/gameplay"
 import { PutHintRequest } from "../../../../types/api"
 import { auth } from "../../../../util/auth"
@@ -17,12 +17,12 @@ const putHintAPI = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   const gameID = getGameID(req)
-  const [player, gameInfo, board] = await Promise.all([getPlayer(req), getGameInfo(gameID), getGameBoard(gameID)])
+  const [player, gameInfo, gamePlayers, board] = await Promise.all([getPlayer(req), getGameInfo(gameID), getGamePlayers(gameID), getGameBoard(gameID)])
   if (!gameInfo.current_turn_num) {
     throw new InvalidRequestError('game not started')
   }
 
-  const gamePlayer = gameInfo.players.find(gp => gp.player_id === player.id)
+  const gamePlayer = gamePlayers.find(gp => gp.player_id === player.id)
   if (!gamePlayer || gamePlayer.player_type !== 'codemaster') {
     throw new InvalidRequestError('player not is not codemaster')
   }
