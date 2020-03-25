@@ -23,12 +23,12 @@ export const WordCard: FunctionComponent<WordCardProps> = ({ children, className
     >
       <span className='cell-word'>{word}</span>
       {codemasterCellType === 'agent' ? (
-        <span className='codemaster-cell-type agent'>
+        <span className='codemaster-cell-type agent' title='Agent'>
           <img src={`${process.env.BASE_URL}/agent.png`} height='40px' width='40px' alt='agent' />
         </span>
       ) : undefined}
       {codemasterCellType === 'assassin' ? (
-        <span className='codemaster-cell-type assassin'>
+        <span className='codemaster-cell-type assassin' title='Assassin'>
           <img src={`${process.env.BASE_URL}/assassin.webp`} height='30px' width='30px' alt='assassin' />
         </span>
       ) : undefined}

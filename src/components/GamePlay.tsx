@@ -106,10 +106,10 @@ const SpectatorView: FunctionComponent<SpectatorViewProps> = ({ currentTurn }) =
 )
 
 interface GameOverViewProps {
-  winning_team?: Team
+  winningTeam?: Team
 }
-const GameOverView: FunctionComponent<GameOverViewProps> = ({ winning_team }) => {
-  if (winning_team) {
+const GameOverView: FunctionComponent<GameOverViewProps> = ({ winningTeam }) => {
+  if (winningTeam) {
     return (
       <h2 className='celebration'>
         YOU WON!!
@@ -126,14 +126,16 @@ const GameOverView: FunctionComponent<GameOverViewProps> = ({ winning_team }) =>
 interface TurnsViewProps {
   turnNum: number
 }
-const TurnsView: FunctionComponent<TurnsViewProps> = ({ turnNum }) => (
+const TurnsView: FunctionComponent<TurnsViewProps> = ({ children, turnNum }) => (
   <div className='turns-view'>
     {range(TWO_PLAYER_TURNS - turnNum + 1, 1).map(n => (
       <div key={n} className='citizen'><CitizenLabel /></div>
     ))}
+    {children}
     <style jsx>
       {`
         .turns-view {
+          position: relative;
           height: 100%;
           padding: 0;
           margin: 0;
@@ -213,8 +215,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
+      {game.game_over ? <GameOverView winningTeam={game.winning_team} /> : undefined}
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
-        {game.game_over ? <GameOverView winning_team={game.winning_team} /> : undefined}
         <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
           {game.board.map((cell, i) => {
             const key = getCellKey(cell)
@@ -249,8 +251,14 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
               </WordCard>
             )
           })}
+
+          {game.game_over ? <span className='game-over-cover' /> : undefined}
         </ol>
-        {game.game_type === '2player' ? <TurnsView turnNum={currentTurn.turn_num} /> : undefined}
+        {game.game_type === '2player' ? (
+          <TurnsView turnNum={currentTurn.turn_num}>
+            {game.game_over ? <span className='game-over-cover' /> : undefined}
+          </TurnsView>
+        ) : undefined}
       </div>
       {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
 
@@ -274,6 +282,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
           }
 
           .board {
+            position: relative;
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
             column-gap: 10px;
@@ -285,8 +294,18 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             border: 1px solid gray;
             border-radius: 10px;
           }
-          .board.game-over {
+
+          .game-over-cover {
+            position: absolute;
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: 5000;
             background-color: #E8E8E8;
+            opacity: 50%;
+            border-radius: 10px;
+            top: 0;
+            left: 0;
           }
 
           .cover-citizen-other {

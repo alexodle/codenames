@@ -28,9 +28,6 @@ const GamesList: FunctionComponent<GamesListProps> = ({ games }) => {
     <ol className='games-list'>
       {!games.length ? <p>None</p> : undefined}
       {games.map(g => {
-        if (!g.players) {
-          debugger
-        }
         return (
           <li key={g.id}>
             <Link href={`/game/${g.id}`}><a>

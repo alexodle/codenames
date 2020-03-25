@@ -3,10 +3,11 @@ import { useThemeContext } from "../components/ThemeContext";
 
 export interface CardLabelProps {
   backgroundColor: string
+  title?: string
 }
 
-export const CardLabel: FunctionComponent<CardLabelProps> = ({ children, backgroundColor }) => (
-  <span className={`card-label`}>
+export const CardLabel: FunctionComponent<CardLabelProps> = ({ children, backgroundColor, title }) => (
+  <span className={`card-label`} title={title}>
     {children}
     <style jsx>
       {`
@@ -31,7 +32,7 @@ export const CardLabel: FunctionComponent<CardLabelProps> = ({ children, backgro
 export const CitizenLabel: FunctionComponent<Omit<CardLabelProps, 'backgroundColor'>> = (props) => {
   const theme = useThemeContext()
   return (
-    <CardLabel {...props} backgroundColor={theme.citizen.dark}>
+    <CardLabel {...props} backgroundColor={theme.citizen.dark} title='Citizen'>
       <img src={`${process.env.BASE_URL}/citizen.png`} alt='citzen' width='20px' height='20px' />
     </CardLabel>
   )

@@ -11,7 +11,7 @@ export const CardCover: FunctionComponent<CardCoverProps> = ({ type }) => {
   return (
     <div className='card-cover'>
       {type === 'citizen' ? <img className={type} src={`${process.env.BASE_URL}/citizen.png`} alt={type} width='95px' height='95px' /> : undefined}
-      {type === 'agent' ? <img className={type} src={`${process.env.BASE_URL}/agent.png`} alt={type} width='95px' height='95px' /> : undefined}
+      {type === 'agent' ? <img className={type} src={`${process.env.BASE_URL}/agent.png`} alt={type} width='105px' height='105px' /> : undefined}
       {type === 'assassin' ? <img className={type} src={`${process.env.BASE_URL}/assassin.webp`} alt={type} width='95px' height='95px' /> : undefined}
       <style jsx>
         {`
@@ -26,11 +26,6 @@ export const CardCover: FunctionComponent<CardCoverProps> = ({ type }) => {
           .card-cover img {
             position: absolute;
             top: 0;
-          }
-          .card-cover img.citizen {
-            left: 30px;
-          }
-          .card-cover img.agent {
             left: 30px;
           }
         `}
