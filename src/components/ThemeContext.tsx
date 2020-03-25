@@ -2,6 +2,16 @@ import { createContext, useContext, FunctionComponent } from "react";
 
 const defaultTheme = {
   unknownColor: '#FFFACD',
+  teams: {
+    '1': {
+      light: '#bbdefb',
+      dark: '#1976d2',
+    },
+    '2': {
+      light: '#fff9c4',
+      dark: '#ffeb3b',
+    }
+  },
   agent: {
     light: '#4caf50',
     dark: '#4caf50',
@@ -16,16 +26,16 @@ const defaultTheme = {
   },
   palette: {
     primary: {
-      light: '#757ce8',
-      main: '#3f50b5',
-      dark: '#002884',
+      light: '#cfd8dc',
+      main: '#607d8b',
+      dark: '#37474f',
       contrastText: '#fff',
     },
     secondary: {
-      light: '#ff7961',
-      main: '#f44336',
-      dark: '#ba000d',
-      contrastText: '#000',
+      light: '#dcedc8',
+      main: '#8bc34a',
+      dark: '#33691e',
+      contrastText: '#fff',
     },
   },
 }

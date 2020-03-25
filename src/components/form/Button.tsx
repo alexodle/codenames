@@ -17,24 +17,29 @@ export const Button: FunctionComponent<ButtonProps> = ({ children, type = 'secon
       </button>
       <style>
         {`
-        button {
-          border: 1px solid ${theme.palette[type].main};
-          border-radius: 5px;
-          padding: 10px;
-          margin-top: 10px;
-          outline: none;
-          font-size: 120%;
-          color: ${theme.palette[type].contrastText};
-          background-color: ${theme.palette[type].light};
-          ${fullWidth ? 'width: 100%;' : ''}
-        }
-        button:enabled {
-          cursor: pointer;
-        }
-        button:enabled:hover {
-          background-color: ${theme.palette[type].main};
-        }
-      `}
+          button {
+            border: 1px solid ${theme.palette[type].main};
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            outline: none;
+            font-size: 120%;
+            color: ${theme.palette[type].contrastText};
+            background-color: ${theme.palette[type].main};
+            ${fullWidth ? 'width: 100%;' : ''}
+          }
+          button:enabled {
+            cursor: pointer;
+          }
+          button:enabled:hover {
+            background-color: ${theme.palette[type].dark};
+          }
+          button:disabled {
+            background-color: #eeeeee;
+            color: #bdbdbd;
+            border-color: #bdbdbd;
+          }
+        `}
       </style>
     </>
   )

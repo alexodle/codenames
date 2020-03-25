@@ -5,7 +5,9 @@ export interface GetMeResult {
 }
 
 export interface GetMyGamesResult {
-  games: GameInfo[]
+  activeGames: GameInfo[]
+  unstartedGames: GameInfo[]
+  completedGames: GameInfo[]
 }
 
 export interface GetGameInfoResult {

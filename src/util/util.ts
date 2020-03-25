@@ -2,6 +2,13 @@ import { GamePlayer, Game, Team } from "../types/model"
 import { ROWS, COLS } from "./constants"
 import { InvalidSessionError } from "./errors"
 
+
+export const sort = <T>(a: T[]): T[] => {
+  const b = [...a]
+  b.sort()
+  return b
+}
+
 export const range = (size: number, startAt: number = 0): number[] => {
   const a = []
   const max = startAt + size

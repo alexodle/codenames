@@ -3,7 +3,7 @@ import { Client, query, withTransaction } from "../db"
 import { Game, GameBoardCell, GameInfo, GamePlayer, GameTurn, GameType, Guess, Player, PlayerType, SpecCardSide, Team, TEAMS } from "../types/model"
 import { COLS, ROWS } from "../util/constants"
 import { InvalidRequestError, NotFoundError } from "../util/errors"
-import { playersByPosition } from "../util/util"
+import { playersByPosition, keyBy, groupBy } from "../util/util"
 import { ensureUpdated } from "./util"
 
 export const createGame = async (player: Player): Promise<number> => {
@@ -17,29 +17,28 @@ export const createGame = async (player: Player): Promise<number> => {
   return gameID!
 }
 
-export const getInProgressGameInfosByPlayer = async (playerID: number): Promise<GameInfo[]> => {
+export const getGameInfosByPlayer = async (playerID: number, gameState: 'unstarted' | 'active' | 'completed', limit: number) => {
   const result = await query<GameInfo>(`
-    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over, COUNT(game_player.player_id) n_players
+    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over
     FROM game
-    LEFT JOIN game_player ON game.id = game_player.game_id
     WHERE
       created_by_player_id = $1 AND
-      game_over = false
-    GROUP BY id
+      ${gameState === 'unstarted' ? 'game_over = false AND game_type IS NULL' : ''}
+      ${gameState === 'active' ? 'game_over = false AND game_type IS NOT NULL' : ''}
+      ${gameState === 'completed' ? 'game_over = true' : ''}
     ORDER BY created_on DESC
-    LIMIT 10;
-    `, [playerID])
+    LIMIT $2;
+    `, [playerID, limit])
   result.rows.forEach(r => { r.is_started = !!r.game_type })
-  return result.rows
+
+  return await attachGamePlayersToGames(result.rows)
 }
 
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   const result = await query<GameInfo>(`
-    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over, COUNT(game_player.player_id) n_players
+    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over
     FROM game
-    LEFT JOIN game_player ON game.id = game_player.game_id
     WHERE id = $1
-    GROUP BY id
     LIMIT 1;`, [gameID])
   if (!result.rows.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
@@ -48,19 +47,18 @@ export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
   const game = result.rows[0]
   game.is_started = !!game.game_type
 
+  await attachGamePlayersToGames([game])
   return game
 }
 
 export const getGame = async (gameID: number): Promise<Game> => {
   const game = await getGameInfo(gameID) as Game
 
-  const [board, players, currentTurn] = await Promise.all([
+  const [board, currentTurn] = await Promise.all([
     getGameBoard(gameID),
-    getGamePlayers(gameID),
     game.is_started ? getTurn(gameID, game.current_turn_num!) : undefined])
 
   game.board = board
-  game.players = players
   game.currentTurn = currentTurn
 
   return game
@@ -181,6 +179,26 @@ export const getGameBoard = async (gameID: number): Promise<GameBoardCell[]> => 
     ORDER BY row ASC, col ASC;
     `, [gameID])
   return result.rows
+}
+
+const attachGamePlayersToGames = async (games: GameInfo[]): Promise<GameInfo[]> => {
+  const gameIDs = games.map(g => g.id)
+  const gamePlayerResult = await query<GamePlayer & { player_name: string, player_sub: string }>(`
+    SELECT game_id, team, player_type, player_id, p.name player_name, p.sub player_sub
+    FROM game_player
+    JOIN player p ON player_id = p.id
+    WHERE game_id = ANY($1::int[]);
+    `, [gameIDs])
+  gamePlayerResult.rows.forEach(gp => {
+    gp.player = { id: gp.player_id, name: gp.player_name, sub: gp.player_sub }
+  })
+
+  const gamePlayersByGameID = groupBy(gamePlayerResult.rows, gp => gp.game_id.toString())
+  games.forEach(g => {
+    g.players = gamePlayersByGameID[g.id.toString()] || []
+  })
+
+  return games
 }
 
 const selectRandomSpecCardID = async (): Promise<number> => {

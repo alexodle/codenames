@@ -5,6 +5,7 @@ import { createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { playersByPosition } from "../util/util";
 import { PrimaryButton } from "./form/Button";
 import { useGameContext } from "./GameContext";
+import { useThemeContext } from "./ThemeContext";
 
 interface ChoiceButtonProps {
   team: Team
@@ -14,6 +15,7 @@ interface ChoiceButtonProps {
 }
 const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, player, myPlayer }) => {
   const { game, gameInvalidated, invalidateGame } = useGameContext()
+  const theme = useThemeContext()
 
   const [, setFetcher] = useDataFetcher(undefined, false)
   const onClick = async () => {
@@ -29,13 +31,13 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
 
   const clickable = !gameInvalidated && !player
   return (
-    <div className={`player-container ${clickable ? 'clickable' : undefined}`} onClick={clickable ? onClick : undefined}>
+    <div className={`player-container ${clickable ? 'clickable' : ''}`} onClick={clickable ? onClick : undefined}>
       <span className='player-type'>
         {playerType === 'codemaster' ? 'CODEMASTER' : 'GUESSER'}
       </span>
-      {!player && !gameInvalidated ? undefined : (
+      {!player ? undefined : (
         <span className='player'>
-          {gameInvalidated ? '...' : playerDisplayName()}
+          {playerDisplayName()}
         </span>
       )}
       <style jsx>{`
@@ -43,10 +45,11 @@ const ChoiceButton: FunctionComponent<ChoiceButtonProps> = ({ team, playerType, 
           border: 1px solid gray;
           border-radius: 10px;
           height: 80px;
-          width: 140px;
+          width: 100%;
           margin-bottom: 20px;
           padding: 10px;
           text-align: center;
+          background-color: ${theme.teams[team].light}
         }
         .player-type {
           display: block;
@@ -105,7 +108,7 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
           />
         </div>
         <div className='team'>
-          <h3>Red Team</h3>
+          <h3>Yellow Team</h3>
           <ChoiceButton
             myPlayer={myPlayer}
             team='2'
@@ -122,13 +125,16 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
       </div>
       {!isMyGame ? undefined : (
         <div className='start-buttons'>
-          <PrimaryButton onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</PrimaryButton>
+          <PrimaryButton fullWidth onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</PrimaryButton>
           {' '}
-          <PrimaryButton onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</PrimaryButton>
+          <PrimaryButton fullWidth onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</PrimaryButton>
         </div>
       )}
       <style jsx>
         {`
+          .team {
+            text-align: center;
+          }
           .start-buttons {
             margin-top: 20px;
           }

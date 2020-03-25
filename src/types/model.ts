@@ -33,13 +33,12 @@ export interface GameInfo {
   game_type?: GameType
   winning_team?: Team
   game_over: boolean
-  n_players: number
+  players: GamePlayer[]
 }
 
 export interface Game extends GameInfo {
   currentTurn?: GameTurn
   board: GameBoardCell[]
-  players: GamePlayer[]
 }
 
 export interface Player {
@@ -50,7 +49,7 @@ export interface Player {
 
 export interface GamePlayer {
   game_id: number
-  player_id: Number
+  player_id: number
   team: Team
   player_type: PlayerType
 

@@ -16,8 +16,7 @@ interface GameSetupPageWithCtxProps {
 const GameSetupPageWithCtx: FunctionComponent<GameSetupPageWithCtxProps> = ({ myPlayer }) => {
   const { game } = useGameContext()
   return (
-    <Layout>
-      <h1>Codenames</h1>
+    <Layout myPlayer={myPlayer}>
       {game.is_started ?
         <GamePlay myPlayer={myPlayer} /> :
         <GameSetup myPlayer={myPlayer} />

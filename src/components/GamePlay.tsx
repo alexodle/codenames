@@ -197,6 +197,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
         setIntervalID(undefined)
       }
     }
+
     if (!intervalID && nCardsShown !== totalCards) {
       setIntervalID(setInterval(() => {
         if (nCardsShown === totalCards) {
@@ -205,6 +206,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
         setNCardsShown(nCardsShown + 1)
       }, CARD_DEAL_DELAY_MILLIS))
     }
+
     return clearIntervalID
   }, [intervalID, nCardsShown, totalCards])
 
@@ -286,45 +288,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
           .board.game-over {
             background-color: #E8E8E8;
           }
-          .codemaster-loading {
-            background-color: #E8E8E8;
-          }
-
-          .cell-type {
-            position: absolute;
-            display: block;
-            top: 5px;
-            right: 5px;
-            width: 30px;
-            height: 30px;
-            font-size: 50%;
-            line-height: 30px;
-            color: white;
-          }
-          .cell-type.assassin {
-            background-color: #000000;
-          }
-          .cell-type.agent {
-            background-color: green;
-          }
-
-          .cover {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0.5;
-          }
-          .cover-agent {
-            background-color: green;
-          }
-          .cover-assassin {
-            background-color: black;
-          }
-          .cover-citizen {
-            background-color: gray;
-          }
 
           .cover-citizen-other {
             position: absolute;
@@ -335,13 +298,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             position: absolute;
             bottom: 5px;
             right: 5px;
-          }
-
-          hr {
-            padding: 0;
-            margin-top: 30px;
-            margin-bottom: 10px;
-            border: 0.5px solid gray;
           }
         `}
       </style>

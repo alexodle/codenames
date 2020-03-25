@@ -24,6 +24,7 @@ export interface GameContextProviderProps {
   initialGame: Game
 }
 export const GameContextProvider: FunctionComponent<GameContextProviderProps> = ({ initialGame, children }) => {
+  const gameID = initialGame.id
   const [state, setState] = useState({ game: initialGame, gameInvalidated: false })
 
   const [gameFetchState, setFetcher] = useDataFetcher<GetGameResult>(undefined, true)
@@ -43,21 +44,17 @@ export const GameContextProvider: FunctionComponent<GameContextProviderProps> = 
     setState({ game, gameInvalidated: false })
   }
 
-  const createGameFetcher = (): DataFetcher<GetGameResult> =>
-    createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${state.game.id}`)
-
   useEffect(() => {
-    console.log('using effect')
     const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
 
-    io.on(`gameChange:${state.game.id}`, () => {
+    io.on(`gameChange:${gameID}`, () => {
       invalidateGame()
-      setFetcher(createGameFetcher())
+      setFetcher(createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${gameID}`))
     })
 
     // TODO
     if (process.env.NODE_ENV !== 'production') {
-      io.on(`gameChange_v2:${state.game.id}`, (not: GameChangeV2Notification) => {
+      io.on(`gameChange_v2:${gameID}`, (not: GameChangeV2Notification) => {
         console.log(not)
       })
     }
