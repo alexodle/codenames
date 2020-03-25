@@ -18,6 +18,7 @@ export const range = (size: number, startAt: number = 0): number[] => {
   return a
 }
 
+export type keyBy = <T extends T2, T2>(a: T[], cb: (v: T2) => string) => { [key: string]: T }
 export const keyBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T } => {
   const d: { [key: string]: T } = {}
   for (const v of a) {
@@ -27,6 +28,7 @@ export const keyBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T } => 
   return d
 }
 
+export type groupBy = <T extends T2, T2>(a: T[], cb: (v: T2) => string) => { [key: string]: T[] }
 export const groupBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T[] } => {
   const d: { [key: string]: T[] } = {}
   for (const v of a) {
@@ -37,7 +39,8 @@ export const groupBy = <T>(a: T[], cb: (v: T) => string): { [key: string]: T[] }
   return d
 }
 
-export const any = <T>(a: T[], cb: (v: T) => boolean): boolean => {
+export type some = <T extends T2, T2>(a: T[], cb: (v: T2) => string) => boolean
+export const some = <T>(a: T[], cb: (v: T) => boolean): boolean => {
   for (const v of a) {
     if (cb(v)) return true
   }
@@ -88,7 +91,7 @@ export const isValidHintQuick = (hint: string) => hint && HINT_RE.test(hint.trim
 
 export const isValidHint = (hint: string, words: string[]) => {
   hint = hint.trim().toLowerCase()
-  return isValidHintQuick(hint) && !any(words.map(w => w.toLowerCase()), w => (
+  return isValidHintQuick(hint) && !some(words.map(w => w.toLowerCase()), w => (
     hint.length > w.length ? hint.includes(w) : w.includes(hint)
   ))
 }

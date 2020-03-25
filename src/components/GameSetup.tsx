@@ -1,4 +1,4 @@
-import { FunctionComponent, SyntheticEvent } from "react";
+import { FunctionComponent, SyntheticEvent, useState, useEffect } from "react";
 import { PutPlayerRequest } from "../types/api";
 import { GamePlayer, GameType, Player, PlayerType, Team } from "../types/model";
 import { createDataSender, useDataFetcher } from "../util/dataFetcher";
@@ -6,6 +6,7 @@ import { playersByPosition } from "../util/util";
 import { PrimaryButton } from "./form/Button";
 import { useGameContext } from "./GameContext";
 import { useThemeContext } from "./ThemeContext";
+import { useRouter } from "next/router";
 
 interface ChoiceButtonProps {
   team: Team
@@ -69,6 +70,11 @@ export interface GameSetupProps {
 export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
   const { game, gameInvalidated, invalidateGame } = useGameContext()
 
+  const [inviteLink, setInviteLink] = useState('...')
+  useEffect(() => {
+    setInviteLink(window.location.href)
+  }, [])
+
   const [codemaster1, codemaster2, guessers1, guessers2] = playersByPosition(game.players)
   const isMyGame = myPlayer.id === game.created_by_player_id
 
@@ -91,6 +97,9 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
   return (
     <div>
       <h2>Game setup</h2>
+      <p className='invite'>
+        Invite your friends by sending them this link: <b>{inviteLink}</b>
+      </p>
       <div className='game-setup-container'>
         <div className='team'>
           <h3>Blue Team</h3>
@@ -100,12 +109,12 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
             playerType='codemaster'
             player={codemaster1}
           />
-          <ChoiceButton
+          {/* <ChoiceButton
             myPlayer={myPlayer}
             team='1'
             playerType='guesser'
             player={guessers1[0]}
-          />
+          /> */}
         </div>
         <div className='team'>
           <h3>Yellow Team</h3>
@@ -115,19 +124,19 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
             playerType='codemaster'
             player={codemaster2}
           />
-          <ChoiceButton
+          {/* <ChoiceButton
             myPlayer={myPlayer}
             team='2'
             playerType='guesser'
             player={guessers2[0]}
-          />
+          /> */}
         </div>
       </div>
       {!isMyGame ? undefined : (
         <div className='start-buttons'>
           <PrimaryButton fullWidth onClick={startGame} disabled={gameInvalidated || gameType !== '2player'}>Start 2 player game</PrimaryButton>
           {' '}
-          <PrimaryButton fullWidth onClick={startGame} disabled={gameInvalidated || gameType !== '4player'}>Start 4 player game</PrimaryButton>
+          <PrimaryButton fullWidth onClick={startGame} disabled={true}>Start 4 player game (Coming soon)</PrimaryButton>
         </div>
       )}
       <style jsx>
@@ -142,6 +151,10 @@ export const GameSetup: FunctionComponent<GameSetupProps> = ({ myPlayer }) => {
             display: grid;
             grid-column-gap: 30px;
             grid-template-columns: 1fr 1fr;
+          }
+          .invite {
+            margin-bottom: 30px;
+            font-size: 90%;
           }
         `}
       </style>

@@ -1,18 +1,15 @@
 import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
-import { GameBoardCell, GameTurn, Player, Team, CellType } from "../types/model";
-import { COLS, ROWS, TWO_PLAYER_TURNS } from "../util/constants";
+import { GameBoardCell, GameTurn, Player, Team } from "../types/model";
+import { TWO_PLAYER_TURNS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
-import { CardCover } from "./CardCover";
+import { isValidHintQuick, range } from "../util/util";
+import { Board } from "./Board";
 import { CitizenLabel } from "./CardLabel";
 import { Input, Label, Option, PrimaryButton, Select } from "./form";
 import { useGameContext } from "./GameContext";
-import { WordCard } from "./WordCard";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
-
-const CARD_DEAL_DELAY_MILLIS = 10
 
 interface CodeMasterHintInputViewProps { }
 const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
@@ -163,7 +160,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const [codemasterViewState] = useDataFetcher(codemasterDataFetcher, isCodeMaster)
 
   const specCardCells = codemasterViewState.data?.teamBoardSpec.specCardCells
-  const cellSpecs = specCardCells ? keyBy(specCardCells, getCellKey) : undefined
 
   const currentTurn = game.currentTurn!
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
@@ -172,8 +168,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
   const [, setGuessFetcher] = useDataFetcher(undefined, false)
-  const onCellClick = (ev: SyntheticEvent, cell: GameBoardCell) => {
-    ev.preventDefault()
+  const onCellClick = (cell: GameBoardCell) => {
     invalidateGame()
     setGuessFetcher(createDataSender<{}, PutGuessRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/guess`, 'PUT', {
       turnNum: currentTurn.turn_num,
@@ -189,71 +184,11 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
     setGuessFetcher(createDataSender<{}, PutPassRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/pass`, 'PUT', { turnNum: currentTurn.turn_num }))
   }
 
-  const totalCards = ROWS * COLS
-  const [nCardsShown, setNCardsShown] = useState(0)
-  const [intervalID, setIntervalID] = useState<NodeJS.Timeout | undefined>(undefined)
-  useEffect(() => {
-    const clearIntervalID = () => {
-      if (intervalID) {
-        clearInterval(intervalID)
-        setIntervalID(undefined)
-      }
-    }
-
-    if (!intervalID && nCardsShown !== totalCards) {
-      setIntervalID(setInterval(() => {
-        if (nCardsShown === totalCards) {
-          return clearIntervalID()
-        }
-        setNCardsShown(nCardsShown + 1)
-      }, CARD_DEAL_DELAY_MILLIS))
-    }
-
-    return clearIntervalID
-  }, [intervalID, nCardsShown, totalCards])
-
-  const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
       {game.game_over ? <GameOverView winningTeam={game.winning_team} /> : undefined}
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
-        <ol className={`board ${game.game_over ? 'game-over' : ''}`}>
-          {game.board.map((cell, i) => {
-            const key = getCellKey(cell)
-            const cellSpec = cellSpecs && cellSpecs[key]
-
-            let fullCellCoverType: CellType | undefined = undefined
-            if (cell.covered === 'assassin') {
-              fullCellCoverType = 'assassin'
-            } else if (cell.covered === '1' || cell.covered === '2') {
-              fullCellCoverType = 'agent'
-            } else if (cell.covered === 'citizen' && cell.covered_citizen_team === 'full') {
-              fullCellCoverType = 'citizen'
-            }
-
-            const isMyCitizenCover = !fullCellCoverType && cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
-            const isOtherCitizenCover = !fullCellCoverType && cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
-
-            const clickable = !gameInvalidated && isGuessing && (!cell.covered || isOtherCitizenCover)
-            const shown = nCardsShown > i
-            return (
-              <WordCard
-                key={key}
-                className={shown ? 'post-deal-in' : 'pre-deal-in'}
-                word={cell.word}
-                clickable={clickable}
-                codemasterCellType={cellSpec?.cell_type}
-                onClick={ev => onCellClick(ev, cell)}
-              >
-                {fullCellCoverType ? <CardCover type={fullCellCoverType} /> : undefined}
-                {isMyCitizenCover ? <span className={`cover-citizen-mine`}><CitizenLabel /></span> : undefined}
-                {isOtherCitizenCover ? <span className={`cover-citizen-other`}><CitizenLabel /></span> : undefined}
-              </WordCard>
-            )
-          })}
-
-          {game.game_over ? <span className='game-over-cover' /> : undefined}
-        </ol>
+        <Board myGamePlayer={myGamePlayer} specCardCells={specCardCells} isGuessing={isGuessing} onCellClick={onCellClick} />
         {game.game_type === '2player' ? (
           <TurnsView turnNum={currentTurn.turn_num}>
             {game.game_over ? <span className='game-over-cover' /> : undefined}
@@ -264,11 +199,12 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
       <hr />
 
-      {!game.game_over ?
-        isCodeMaster && isMyTurn && !currentTurn.hint_word ?
-          <CodeMasterHintInputView /> :
-          <SpectatorView currentTurn={currentTurn} />
-        : undefined
+      {
+        !game.game_over ?
+          isCodeMaster && isMyTurn && !currentTurn.hint_word ?
+            <CodeMasterHintInputView /> :
+            <SpectatorView currentTurn={currentTurn} />
+          : undefined
       }
 
       {isGuessing ? <PrimaryButton fullWidth onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</PrimaryButton> : undefined}
@@ -280,46 +216,8 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             grid-template-columns: 1fr 40px;
             column-gap: 10px;
           }
-
-          .board {
-            position: relative;
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-            column-gap: 10px;
-            row-gap: 10px;
-            list-style-type: none;
-            margin: 0;
-            padding: 0;
-            padding: 10px;
-            border: 1px solid gray;
-            border-radius: 10px;
-          }
-
-          .game-over-cover {
-            position: absolute;
-            display: block;
-            width: 100%;
-            height: 100%;
-            z-index: 5000;
-            background-color: #E8E8E8;
-            opacity: 50%;
-            border-radius: 10px;
-            top: 0;
-            left: 0;
-          }
-
-          .cover-citizen-other {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-          }
-          .cover-citizen-mine {
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-          }
         `}
       </style>
-    </div>
+    </div >
   )
 }
