@@ -40,22 +40,29 @@ export const GameContextProvider: FunctionComponent<GameContextProviderProps> = 
   }, [gameFetchState.data])
 
   useEffect(() => {
+    let cancelled = false
+
     const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
 
     io.on(`gameChange:${gameID}`, () => {
-      invalidateGame()
-      setFetcher(createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${gameID}`))
+      if (!cancelled) {
+        invalidateGame()
+        setFetcher(createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${gameID}`))
+      }
     })
 
     // TODO
     if (process.env.NODE_ENV !== 'production') {
       io.on(`gameChange_v2:${gameID}`, (not: GameChangeV2Notification) => {
-        console.log(not)
+        if (!cancelled) {
+          console.log(not)
+        }
       })
     }
 
     return () => {
       try {
+        cancelled = true
         io.removeAllListeners()
         io.close()
       } catch { }
