@@ -4,12 +4,11 @@
 -- Table Definition ----------------------------------------------
 
 CREATE TABLE player (
-    id integer DEFAULT nextval('player_id_seq1'::regclass) PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name text NOT NULL,
     sub text NOT NULL
 );
 
 -- Indices -------------------------------------------------------
 
-CREATE UNIQUE INDEX player_pkey ON player(id int4_ops);
 CREATE UNIQUE INDEX player_sub_idx ON player(sub text_ops);
