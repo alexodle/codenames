@@ -1,4 +1,4 @@
-import { createContext, FunctionComponent, useContext, useState, useEffect } from "react";
+import { createContext, FunctionComponent, useContext, useState, useEffect, useReducer } from "react";
 import { Game, GameChangeV2Notification } from "../types/model";
 import socketIO from 'socket.io-client';
 import { DataFetcher, createDataFetcher, useDataFetcher } from "../util/dataFetcher";
@@ -27,22 +27,22 @@ export const GameContextProvider: FunctionComponent<GameContextProviderProps> = 
   const gameID = initialGame.id
   const [state, setState] = useState({ game: initialGame, gameInvalidated: false })
 
+  const invalidateGame = () => {
+    setState(prevState => ({ ...prevState, gameInvalidated: true }))
+  }
+  const validateGame = () => {
+    setState(prevState => ({ ...prevState, gameInvalidated: false }))
+  }
+  const setGame = (game: Game) => {
+    setState({ game, gameInvalidated: false })
+  }
+
   const [gameFetchState, setFetcher] = useDataFetcher<GetGameResult>(undefined, true)
   useEffect(() => {
     if (gameFetchState.data) {
       setGame(gameFetchState.data.game)
     }
   }, [gameFetchState.data])
-
-  const invalidateGame = () => {
-    setState({ ...state, gameInvalidated: true })
-  }
-  const validateGame = () => {
-    setState({ ...state, gameInvalidated: false })
-  }
-  const setGame = (game: Game) => {
-    setState({ game, gameInvalidated: false })
-  }
 
   useEffect(() => {
     const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
