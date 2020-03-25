@@ -9,7 +9,6 @@ export interface GameContextProps {
   gameInvalidated: boolean
   invalidateGame: () => void
   validateGame: () => void
-  setGame: (game: Game) => void
 }
 
 const GameContext = createContext<GameContextProps>({
@@ -17,7 +16,6 @@ const GameContext = createContext<GameContextProps>({
   gameInvalidated: false,
   invalidateGame: () => { },
   validateGame: () => { },
-  setGame: (_game: Game) => { },
 })
 
 export interface GameContextProviderProps {
@@ -33,14 +31,11 @@ export const GameContextProvider: FunctionComponent<GameContextProviderProps> = 
   const validateGame = () => {
     setState(prevState => ({ ...prevState, gameInvalidated: false }))
   }
-  const setGame = (game: Game) => {
-    setState({ game, gameInvalidated: false })
-  }
 
   const [gameFetchState, setFetcher] = useDataFetcher<GetGameResult>(undefined, true)
   useEffect(() => {
     if (gameFetchState.data) {
-      setGame(gameFetchState.data.game)
+      setState({ game: gameFetchState.data.game, gameInvalidated: false })
     }
   }, [gameFetchState.data])
 
@@ -67,7 +62,7 @@ export const GameContextProvider: FunctionComponent<GameContextProviderProps> = 
     }
   }, [])
 
-  return <GameContext.Provider value={{ ...state, invalidateGame, validateGame, setGame }}>{children}</GameContext.Provider>
+  return <GameContext.Provider value={{ ...state, invalidateGame, validateGame }}>{children}</GameContext.Provider>
 }
 
 export const useGameContext = (): GameContextProps => {
