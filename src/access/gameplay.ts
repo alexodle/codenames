@@ -31,22 +31,19 @@ export const getTeamBoardSpec = async (gameID: number, team: Team): Promise<Team
   return teamSpecCard
 }
 
-export const setHint = async (gameID: number, turnNum: number, hint: string, hintNum: number) => {
-  ensureUpdated('Hint either not found or given out of sync', await query(`
-    UPDATE game_turn
-    SET hint_word = $3, hint_num = $4
-    WHERE game_id = $1 AND turn_num = $2 AND hint_word IS NULL AND turn_num = (
-      SELECT current_turn_num FROM game WHERE id = $1 AND current_turn_num IS NOT NULL LIMIT 1
-    );
-    `, [gameID, turnNum, hint, hintNum]))
-  // TODO: rely on postgres triggers
-  query(`NOTIFY gameChange, '${gameID}';`, [])
-}
-
 export const processEvents = async (gameID: number, events: GameEvent[]) => {
   await withTransaction(async client => {
     for (const event of events) {
       switch (event.type) {
+        case 'hint':
+          ensureUpdated('Failed to set hint', await query(`
+            UPDATE game_turn
+            SET hint_word = $3, hint_num = $4
+            WHERE game_id = $1 AND turn_num = $2 AND hint_word IS NULL AND turn_num = (
+              SELECT current_turn_num FROM game WHERE id = $1 AND current_turn_num IS NOT NULL LIMIT 1
+            );
+            `, [gameID, event.turnNum, event.hint, event.hintNum]))
+          break
         case 'guess':
           ensureUpdated('Failed to add guess', await client.query(`
             INSERT INTO game_turn_guesses(game_id, turn_num, guess_num, row, col)

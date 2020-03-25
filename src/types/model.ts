@@ -97,7 +97,14 @@ export interface TeamBoardSpec {
   specCardCells: SpecCardCell[]
 }
 
-export type GameEvent = GuessEvent | CellCoverEvent | PassEvent | NextTurnEvent | GameOverEvent;
+export type GameEvent = HintEvent | GuessEvent | CellCoverEvent | PassEvent | NextTurnEvent | GameOverEvent;
+
+export type HintEvent = {
+  type: 'hint'
+  turnNum: number
+  hint: string
+  hintNum: number
+}
 
 export type GuessEvent = {
   type: 'guess'
