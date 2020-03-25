@@ -1,14 +1,18 @@
 import { createContext, useContext, FunctionComponent } from "react";
 
-
 const defaultTheme = {
+  unknownColor: '#FFFACD',
   agent: {
     light: '#4caf50',
     dark: '#4caf50',
   },
   assassin: {
-    light: '#808080',
-    dark: '#E8E8E8',
+    light: '#f44336',
+    dark: '#f44336',
+  },
+  citizen: {
+    light: '#D3D3D3',
+    dark: '#D3D3D3',
   },
   palette: {
     primary: {

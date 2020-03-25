@@ -1,13 +1,14 @@
 import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
-import { GameBoardCell, GameTurn, Player, SpecCardCell, Team } from "../types/model";
-import { TWO_PLAYER_TURNS, COLS, ROWS } from "../util/constants";
+import { GameBoardCell, GameTurn, Player, Team, CellType } from "../types/model";
+import { COLS, ROWS, TWO_PLAYER_TURNS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
-import { capitalize, getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
+import { getCellKey, getOtherTeam, isValidHintQuick, keyBy, range } from "../util/util";
+import { CardCover } from "./CardCover";
+import { CitizenLabel } from "./CardLabel";
 import { Input, Label, Option, PrimaryButton, Select } from "./form";
 import { useGameContext } from "./GameContext";
-import { WordCard } from "./WordCard"
-import { AgentCardLabel, AssassinCardLabel } from "./CardLabel";
+import { WordCard } from "./WordCard";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
 
@@ -49,7 +50,7 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
           id='hint'
           name='hint'
           placeholder='Hint'
-          className='hint-input'
+          fullWidth
           error={invalidHintError}
           value={hint}
           disabled={gameInvalidated}
@@ -64,7 +65,7 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
         <Select
           id='hintNum'
           name='hintNum'
-          className='hint-input'
+          fullWidth
           value={hintNum}
           disabled={gameInvalidated}
           onChange={ev => setHintNum(ev.target.value)}
@@ -72,17 +73,7 @@ const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> =
           {HINT_NUM_RANGE.map(n => <Option key={n} value={n}>{n}</Option>)}
         </Select>
       </Label>
-      <PrimaryButton className='submit-hint-btn' onClick={submitHint} disabled={gameInvalidated || invalidHint}>Submit hint</PrimaryButton>
-      <style>
-        {`
-          .submit-hint-btn {
-            width: 100%;
-          }
-          .hint-input {
-            width: 100%;
-          }
-        `}
-      </style>
+      <PrimaryButton fullWidth onClick={submitHint} disabled={gameInvalidated || invalidHint}>Submit hint</PrimaryButton>
     </div>
   )
 }
@@ -136,32 +127,26 @@ interface TurnsViewProps {
   turnNum: number
 }
 const TurnsView: FunctionComponent<TurnsViewProps> = ({ turnNum }) => (
-  <ol className='turns-view'>
+  <div className='turns-view'>
     {range(TWO_PLAYER_TURNS - turnNum + 1, 1).map(n => (
-      <li key={n} className='turn-box' />
+      <div key={n} className='citizen'><CitizenLabel /></div>
     ))}
     <style jsx>
       {`
         .turns-view {
-          list-style-type: none;
           height: 100%;
           padding: 0;
           margin: 0;
           border: 1px solid gray;
           border-radius: 10px;
         }
-        .turn-box {
-          padding: 0;
-          width: 0;
-          margin-left: 4px;
-          margin-top: 20px;
-          width: 30px;
-          height: 30px;
-          background-color: gray;
+        .citizen {
+          margin-left: 5px;
+          padding-top: 30px;
         }
       `}
     </style>
-  </ol>
+  </div>
 )
 
 export interface GamePlayProps {
@@ -169,21 +154,19 @@ export interface GamePlayProps {
 }
 export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const { game, gameInvalidated, invalidateGame } = useGameContext()
-
   const myGamePlayer = game.players.find(p => p.player_id === myPlayer.id)!
+
   const isCodeMaster = myGamePlayer.player_type === 'codemaster'
   const codemasterDataFetcher = isCodeMaster ? createDataFetcher<GetGamePlayerViewRequest>(`${process.env.API_BASE_URL}/api/game/${game.id}/player`) : undefined
   const [codemasterViewState] = useDataFetcher(codemasterDataFetcher, isCodeMaster)
 
-  let cellSpecs: { [key: string]: SpecCardCell } | undefined = undefined
   const specCardCells = codemasterViewState.data?.teamBoardSpec.specCardCells
-  if (codemasterViewState.data) {
-    cellSpecs = keyBy(codemasterViewState.data.teamBoardSpec.specCardCells, getCellKey)
-  }
+  const cellSpecs = specCardCells ? keyBy(specCardCells, getCellKey) : undefined
 
   const currentTurn = game.currentTurn!
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
   const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && !!currentTurn.hint_word
+
   const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
 
   const [, setGuessFetcher] = useDataFetcher(undefined, false)
@@ -219,34 +202,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
     }
   })
 
-  const [hiddenLabelIdxs, setHiddenLabelIdxs] = useState<number[] | undefined>(undefined)
-  useEffect(() => {
-    if (nCardsShown === totalCards && specCardCells) {
-      const newHiddenLabelIdxs: number[] = []
-      for (let i = 0; i < specCardCells.length; i++) {
-        if (specCardCells[i].cell_type !== 'citizen') {
-          newHiddenLabelIdxs.push(i)
-        }
-      }
-      setHiddenLabelIdxs(newHiddenLabelIdxs)
-    }
-  }, [nCardsShown === totalCards, specCardCells])
-
-  useEffect(() => {
-    if (hiddenLabelIdxs) {
-      const intervalID = setInterval(() => {
-        if (!hiddenLabelIdxs.length) {
-          clearInterval(intervalID)
-          return
-        }
-        setHiddenLabelIdxs(hiddenLabelIdxs.slice(1))
-      }, CARD_DEAL_DELAY_MILLIS)
-      return () => {
-        clearInterval(intervalID)
-      }
-    }
-  }, [hiddenLabelIdxs])
-
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (
     <div>
@@ -257,48 +212,51 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             const key = getCellKey(cell)
             const cellSpec = cellSpecs && cellSpecs[key]
 
-            const isFullCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === 'full'
-            const isMyCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
-            const isOtherCitizenCover = cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
+            let fullCellCoverType: CellType | undefined = undefined
+            if (cell.covered === 'assassin') {
+              fullCellCoverType = 'assassin'
+            } else if (cell.covered === '1' || cell.covered === '2') {
+              fullCellCoverType = 'agent'
+            } else if (cell.covered === 'citizen' && cell.covered_citizen_team === 'full') {
+              fullCellCoverType = 'citizen'
+            }
+
+            const isMyCitizenCover = !fullCellCoverType && cell.covered === 'citizen' && cell.covered_citizen_team === myGamePlayer.team
+            const isOtherCitizenCover = !fullCellCoverType && cell.covered === 'citizen' && cell.covered_citizen_team === otherTeam
 
             const clickable = !gameInvalidated && isGuessing && (!cell.covered || isOtherCitizenCover)
             const shown = nCardsShown > i
-            const showCardLabel = hiddenLabelIdxs !== undefined && (hiddenLabelIdxs.length == 0 || hiddenLabelIdxs[0] > i)
             return (
               <WordCard
                 key={key}
                 className={shown ? 'post-deal-in' : 'pre-deal-in'}
                 word={cell.word}
                 clickable={clickable}
-                animationDelayMillis={(i + 1) * 20}
+                codemasterCellType={cellSpec?.cell_type}
                 onClick={ev => onCellClick(ev, cell)}
               >
-                {cellSpec?.cell_type === 'agent' ?
-                  <AgentCardLabel className={showCardLabel ? 'post-deal-in' : 'pre-deal-in'} /> : undefined}
-                {cellSpec?.cell_type === 'assassin' ?
-                  <AssassinCardLabel className={showCardLabel ? 'post-deal-in' : 'pre-deal-in'} /> : undefined}
-
-                {cell.covered === '1' || cell.covered === '2' ? <span className='cover cover-agent' /> : undefined}
-
-                {cell.covered === 'assassin' || isFullCitizenCover ? <span className={`cover cover-${cell.covered}`} /> : undefined}
-
-                {isMyCitizenCover ? <span className={`partial-cover cover-citizen-mine`}>YOU</span> : undefined}
-                {isOtherCitizenCover ? <span className={`partial-cover cover-citizen-other`}>THEM</span> : undefined}
+                {fullCellCoverType ? <CardCover type={fullCellCoverType} /> : undefined}
+                {isMyCitizenCover ? <span className={`cover-citizen-mine`}><CitizenLabel /></span> : undefined}
+                {isOtherCitizenCover ? <span className={`cover-citizen-other`}><CitizenLabel /></span> : undefined}
               </WordCard>
             )
           })}
         </ol>
         {game.game_type === '2player' ? <TurnsView turnNum={currentTurn.turn_num} /> : undefined}
       </div>
-      {isGuessing ? <PrimaryButton onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</PrimaryButton> : undefined}
       {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
+
       <hr />
+
       {!game.game_over ?
         isCodeMaster && isMyTurn && !currentTurn.hint_word ?
           <CodeMasterHintInputView /> :
           <SpectatorView currentTurn={currentTurn} />
         : undefined
       }
+
+      {isGuessing ? <PrimaryButton fullWidth onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</PrimaryButton> : undefined}
+
       <style jsx>
         {`
           .game-container.two-player {
@@ -362,19 +320,15 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
             background-color: gray;
           }
 
-          .partial-cover {
+          .cover-citizen-other {
             position: absolute;
             top: 5px;
-            left: 5px;
-            width: 30px;
-            height: 30px;
-            opacity: 0.75;
-            font-size: 50%;
-            line-height: 30px;
-            color: white;
+            right: 5px;
           }
-          .cover-citizen-other, .cover-citizen-mine {
-            background-color: gray;
+          .cover-citizen-mine {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
           }
 
           hr {

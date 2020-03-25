@@ -7,6 +7,7 @@ const [FONT_SIZE, FONT, FONT_URL] = ['15px', `'IBM Plex Sans', sans-serif`, 'htt
 export const Layout: FunctionComponent = ({ children }) => (
   <ThemeContextProvider>
     <Head key="layout">
+      <title>Codenames with friends</title>
       <link rel="stylesheet" href={FONT_URL} />
     </Head>
     <div className='container'>

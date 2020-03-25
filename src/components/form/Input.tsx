@@ -5,15 +5,15 @@ export interface InputProps {
   id?: string
   name?: string
   placeholder?: string
-  className?: string
   value?: string
   disabled?: boolean
+  fullWidth?: boolean
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void
 }
 
-export const Input: FunctionComponent<InputProps> = ({ className, error, ...props }) => (
+export const Input: FunctionComponent<InputProps> = ({ error, fullWidth, ...props }) => (
   <>
-    <input {...props} className={`${className || ''} ${error ? 'error' : ''}`} />
+    <input {...props} className={error ? 'error' : ''} />
     <style jsx>
       {`
         input {
@@ -24,6 +24,7 @@ export const Input: FunctionComponent<InputProps> = ({ className, error, ...prop
           padding: 10px;
           margin-top: 10px;
           outline: none;
+          ${fullWidth ? 'width: 100%;' : ''}
         }
         input.error {
           border: 1px solid red;
