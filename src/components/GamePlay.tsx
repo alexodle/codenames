@@ -189,18 +189,24 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
   const totalCards = ROWS * COLS
   const [nCardsShown, setNCardsShown] = useState(0)
+  const [intervalID, setIntervalID] = useState<NodeJS.Timeout | undefined>(undefined)
   useEffect(() => {
-    const intervalID = setInterval(() => {
-      if (nCardsShown === totalCards) {
+    const clearIntervalID = () => {
+      if (intervalID) {
         clearInterval(intervalID)
-        return
+        setIntervalID(undefined)
       }
-      setNCardsShown(nCardsShown + 1)
-    }, CARD_DEAL_DELAY_MILLIS)
-    return () => {
-      clearInterval(intervalID)
     }
-  })
+    if (!intervalID && nCardsShown !== totalCards) {
+      setIntervalID(setInterval(() => {
+        if (nCardsShown === totalCards) {
+          return clearIntervalID()
+        }
+        setNCardsShown(nCardsShown + 1)
+      }, CARD_DEAL_DELAY_MILLIS))
+    }
+    return clearIntervalID
+  }, [intervalID, nCardsShown, totalCards])
 
   const otherTeam = getOtherTeam(myGamePlayer.team)
   return (

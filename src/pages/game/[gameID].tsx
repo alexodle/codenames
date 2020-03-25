@@ -1,56 +1,20 @@
 import fetch from 'isomorphic-unfetch';
 import { NextPage, NextPageContext } from "next";
-import { useEffect, useState, FunctionComponent } from "react";
-import socketIO from 'socket.io-client';
+import { FunctionComponent } from "react";
+import { GameContextProvider, useGameContext } from "../../components/GameContext";
 import { GamePlay } from "../../components/GamePlay";
 import { GameSetup } from "../../components/GameSetup";
 import { Layout } from "../../components/Layout";
 import { GetGameResult } from "../../types/api";
-import { Game, GameChangeV2Notification, Player } from "../../types/model";
-import { createDataFetcher, DataFetcher, useDataFetcher } from "../../util/dataFetcher";
+import { Game, Player } from "../../types/model";
 import { getInitialPropsRequireAuth } from "../../util/gipAuth";
 import { ensureResponseOk } from '../../util/util';
-import { GameContextProvider, useGameContext } from "../../components/GameContext";
 
 interface GameSetupPageWithCtxProps {
   myPlayer: Player
 }
 const GameSetupPageWithCtx: FunctionComponent<GameSetupPageWithCtxProps> = ({ myPlayer }) => {
-  const { game, invalidateGame, setGame } = useGameContext()
-
-  const createGameFetcher = (): DataFetcher<GetGameResult> =>
-    createDataFetcher<GetGameResult>(`${process.env.API_BASE_URL}/api/game/${game.id}`)
-
-  const [gameFetchState, setFetcher] = useDataFetcher<GetGameResult>(undefined, true)
-  useEffect(() => {
-    if (gameFetchState.data) {
-      setGame(gameFetchState.data.game)
-    }
-  }, [gameFetchState.data])
-
-  useEffect(() => {
-    const io = socketIO(`${process.env.SOCKET_BASE_URL}/game`, { path: '/socket' })
-
-    io.on(`gameChange:${game.id}`, () => {
-      invalidateGame()
-      setFetcher(createGameFetcher())
-    })
-
-    // TODO
-    if (process.env.NODE_ENV !== 'production') {
-      io.on(`gameChange_v2:${game.id}`, (not: GameChangeV2Notification) => {
-        console.log(not)
-      })
-    }
-
-    return () => {
-      try {
-        io.removeAllListeners()
-        io.close()
-      } catch { }
-    }
-  })
-
+  const { game } = useGameContext()
   return (
     <Layout>
       <h1>Codenames</h1>
