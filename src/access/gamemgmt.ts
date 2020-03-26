@@ -118,8 +118,8 @@ export const startGame = async (gameID: number) => {
     }
 
     ensureUpdated('Failed to create turn', await client.query(`
-      INSERT INTO game_turn(game_id, turn_num, team)
-      VALUES($1, $2, $3);
+      INSERT INTO game_turn(game_id, turn_num, team, allow_pass)
+      VALUES($1, $2, $3, true);
       `, [gameID, 1, firstTeam]))
 
     for (const team of TEAMS) {
@@ -151,7 +151,7 @@ export const addPlayerToGame = async (gameID: number, playerID: number, team: Te
 
 export const getTurn = async (gameID: number, turnNum: number): Promise<GameTurn> => {
   const result = await query<GameTurn>(`
-    SELECT game_id, turn_num, team, hint_word, hint_num
+    SELECT game_id, turn_num, team, hint_word, hint_num, allow_pass
     FROM game_turn
     WHERE game_id = $1 AND turn_num = $2
     LIMIT 1;`, [gameID, turnNum])

@@ -8,7 +8,8 @@ CREATE TABLE game_turn (
     turn_num integer NOT NULL,
     team text NOT NULL,
     hint_word text,
-    hint_num integer
+    hint_num integer,
+    allow_pass boolean NOT NULL
 );
 
 -- Indices -------------------------------------------------------

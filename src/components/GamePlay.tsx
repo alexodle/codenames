@@ -193,7 +193,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
           </TurnsView>
         ) : undefined}
       </div>
-      {isMyTurn && currentTurn.hint_word ? <p>Waiting for other player to guess...</p> : undefined}
+      {isMyTurn && currentTurn.hint_word && !game.game_over ? <p>Waiting for other player to guess...</p> : undefined}
 
       <hr />
 

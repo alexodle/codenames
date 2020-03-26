@@ -60,18 +60,18 @@ export const processEvents = async (gameID: number, events: GameEvent[]) => {
         case 'nextturn':
           ensureUpdated('Failed to increment turn num', await client.query(`
             UPDATE game
-            SET current_turn_num = $3
+            SET current_turn_num = $2
             FROM game_turn
             WHERE
-              game_id = $1 AND
-              game_turn.team != $2 AND
-              current_turn_num = ($3 - 1) AND
-              game_turn.turn_num = ($3 - 1);
-            `, [gameID, event.nextTeam, event.nextTurnNum]))
+              game.id = $1 AND
+              game.current_turn_num = ($2 - 1) AND
+              game_turn.game_id = $1 AND
+              game_turn.turn_num = ($2 - 1);
+            `, [gameID, event.nextTurnNum]))
           ensureUpdated('Failed to create new turn', await client.query(`
-            INSERT INTO game_turn(game_id, turn_num, team)
-            VALUES($1, $2, $3);
-            `, [gameID, event.nextTurnNum, event.nextTeam]))
+            INSERT INTO game_turn(game_id, turn_num, team, allow_pass)
+            VALUES($1, $2, $3, $4);
+            `, [gameID, event.nextTurnNum, event.nextTeam, event.nextTurnAllowPass]))
           break
         case 'gameover':
           ensureUpdated('Failed to set game over', await client.query(`
