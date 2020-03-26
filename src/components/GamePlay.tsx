@@ -165,8 +165,6 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
   const isMyTurn = myGamePlayer.team === game.currentTurn!.team
   const isGuessing = !game.game_over && ((isMyTurn && !isCodeMaster) || (game.game_type === '2player' && !isMyTurn)) && !!currentTurn.hint_word
 
-  const isLastTurn = game.game_type === '2player' && currentTurn.turn_num === TWO_PLAYER_TURNS
-
   const [, setGuessFetcher] = useDataFetcher(undefined, false)
   const onCellClick = (cell: GameBoardCell) => {
     invalidateGame()
@@ -207,7 +205,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
           : undefined
       }
 
-      {isGuessing ? <PrimaryButton fullWidth onClick={onPass} disabled={gameInvalidated || isLastTurn}>Pass</PrimaryButton> : undefined}
+      {isGuessing ? <PrimaryButton fullWidth onClick={onPass} disabled={gameInvalidated || !currentTurn.allow_pass}>Pass</PrimaryButton> : undefined}
 
       <style jsx>
         {`

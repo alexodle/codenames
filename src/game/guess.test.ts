@@ -59,6 +59,7 @@ const create2PlayerGame = (rep: string, { turnNum = 1, turnTeam = '1' }): Game =
       guesses: [],
       hint_word: 'hint',
       hint_num: 1,
+      allow_pass: true,
     },
     board: cells,
   }
@@ -140,7 +141,7 @@ describe('processGuess2Player', () => {
     const expected: GameEvent[] = [
       { type: 'guess', turnNum: 1, guessNum: 1, row: 3, col: 4 },
       { type: 'cover', newCover: 'citizen', newCoverCitizenTeam: '2', turnNum: 1, row: 3, col: 4 },
-      { type: 'nextturn', nextTurnNum: 2, nextTeam: '2' },
+      { type: 'nextturn', nextTurnNum: 2, nextTeam: '2', nextTurnAllowPass: true },
     ]
     expect(events).toStrictEqual(expected)
   })
@@ -173,6 +174,34 @@ describe('processGuess2Player', () => {
     expect(events).toStrictEqual(expected)
   })
 
+  test('do not allow pass for last turn', () => {
+    const game = create2PlayerGame(`
+      -----
+      -----
+      -----
+      -----
+      -----`, { turnNum: TWO_PLAYER_TURNS - 1 })
+    const boardSpec1 = createBoardSpec('1', `
+      AAAAA
+      AAAAX
+      XXZZZ
+      ZZZZZ
+      ZZZZZ`)
+    const boardSpec2 = createBoardSpec('2', `
+      AAAZZ
+      ZZZZZ
+      ZXXXA
+      AAAAA
+      ZZZZZ`)
+    const events = processGuess2Player(game, [boardSpec1, boardSpec2], game.players[1], { game_id: 1, turn_num: TWO_PLAYER_TURNS - 1, guess_num: 1, row: 3, col: 4 })
+    const expected: GameEvent[] = [
+      { type: 'guess', turnNum: TWO_PLAYER_TURNS - 1, guessNum: 1, row: 3, col: 4 },
+      { type: 'cover', newCover: 'citizen', newCoverCitizenTeam: '2', turnNum: TWO_PLAYER_TURNS - 1, row: 3, col: 4 },
+      { type: 'nextturn', nextTurnNum: TWO_PLAYER_TURNS, nextTeam: '2', nextTurnAllowPass: false },
+    ]
+    expect(events).toStrictEqual(expected)
+  })
+
   test('do not change turn if other player is done', () => {
     const game = create2PlayerGame(`
       AAAAA
@@ -196,7 +225,7 @@ describe('processGuess2Player', () => {
     const expected: GameEvent[] = [
       { type: 'guess', turnNum: 2, guessNum: 1, row: 4, col: 4 },
       { type: 'cover', newCover: 'citizen', newCoverCitizenTeam: '1', turnNum: 2, row: 4, col: 4 },
-      { type: 'nextturn', nextTurnNum: 3, nextTeam: '2' },
+      { type: 'nextturn', nextTurnNum: 3, nextTeam: '2', nextTurnAllowPass: false },
     ]
     expect(events).toStrictEqual(expected)
   })
@@ -224,7 +253,7 @@ describe('processGuess2Player', () => {
     const expected: GameEvent[] = [
       { type: 'guess', turnNum: 1, guessNum: 1, row: 1, col: 3 },
       { type: 'cover', newCover: '1', turnNum: 1, row: 1, col: 3 },
-      { type: 'nextturn', nextTurnNum: 2, nextTeam: '2' },
+      { type: 'nextturn', nextTurnNum: 2, nextTeam: '2', nextTurnAllowPass: false },
     ]
     expect(events).toStrictEqual(expected)
   })
@@ -282,7 +311,7 @@ describe('pass', () => {
     const events = processPass(game, [boardSpec1, boardSpec2], game.players[1], 1)
     const expected: GameEvent[] = [
       { type: 'pass', turnNum: 1 },
-      { type: 'nextturn', nextTeam: '2', nextTurnNum: 2 },
+      { type: 'nextturn', nextTeam: '2', nextTurnNum: 2, nextTurnAllowPass: true },
     ]
     expect(events).toStrictEqual(expected)
   })

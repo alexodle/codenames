@@ -1,4 +1,4 @@
-import { CellCoverEvent, Game, GameEvent, GamePlayer, Guess, Team, TeamBoardSpec, TEAMS } from "../types/model";
+import { CellCoverEvent, Game, GameEvent, GamePlayer, Guess, Team, TeamBoardSpec, TEAMS, NextTurnEvent } from "../types/model";
 import { TWO_PLAYER_TURNS } from "../util/constants";
 import { InvalidRequestError } from "../util/errors";
 import { getCellIdx, getCellKey, getOtherTeam, keyBy } from "../util/util";
@@ -40,7 +40,11 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
     } else {
       const teamsDone = calcTeamsDone(game, boardSpecs, results)
       const nextTeam = !teamsDone.includes(otherTeam) ? getOtherTeam(game.currentTurn!.team) : game.currentTurn!.team
-      results.push({ type: 'nextturn', nextTeam, nextTurnNum: guess.turn_num + 1 })
+      results.push(withNextTurnAllowPass(game, teamsDone, {
+        type: 'nextturn',
+        nextTeam,
+        nextTurnNum: guess.turn_num + 1,
+      }))
     }
 
   } else {
@@ -50,7 +54,11 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
     if (teamsDone.length === 2) {
       results.push({ type: 'gameover', turnNum: guess.turn_num, winner: '1' })
     } else if (teamsDone.includes(player.team)) {
-      results.push({ type: 'nextturn', nextTeam: getOtherTeam(game.currentTurn!.team), nextTurnNum: guess.turn_num + 1 })
+      results.push(withNextTurnAllowPass(game, teamsDone, {
+        type: 'nextturn',
+        nextTeam: getOtherTeam(game.currentTurn!.team),
+        nextTurnNum: guess.turn_num + 1,
+      }))
     }
   }
 
@@ -59,22 +67,35 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
 
 export const processPass = (game: Game, boardSpecs: TeamBoardSpec[], player: GamePlayer, turnNum: number): GameEvent[] => {
   ensureCorrectTurn(game, player, turnNum)
+  if (game.game_type !== '2player') {
+    return [{ type: 'pass', turnNum }]
+  }
 
-  if (game.game_type === '2player') {
-    if (turnNum === TWO_PLAYER_TURNS) {
-      throw new InvalidRequestError('Cannot pass on last turn')
-    }
+  if (turnNum === TWO_PLAYER_TURNS) {
+    throw new InvalidRequestError('Cannot pass on last turn')
+  }
 
-    const teamsDone = calcTeamsDone(game, boardSpecs, [])
-    if (teamsDone.includes(getOtherTeam(player.team))) {
-      throw new InvalidRequestError('Cannot pass when other team is done')
-    }
+  if (!game.currentTurn!.allow_pass) {
+    throw new InvalidRequestError('Not allowing pass on this turn')
+  }
+
+  const teamsDone = calcTeamsDone(game, boardSpecs, [])
+  if (teamsDone.includes(getOtherTeam(player.team))) {
+    throw new InvalidRequestError('Cannot pass when other team is done')
   }
 
   return [
     { type: 'pass', turnNum },
-    { type: 'nextturn', nextTeam: player.team, nextTurnNum: turnNum + 1 },
+    withNextTurnAllowPass(game, teamsDone, { type: 'nextturn', nextTeam: player.team, nextTurnNum: turnNum + 1 }),
   ]
+}
+
+const withNextTurnAllowPass = (game: Game, teamsDone: Team[], ev: Omit<NextTurnEvent, 'nextTurnAllowPass'>): NextTurnEvent => {
+  const fullEv = ev as NextTurnEvent
+  fullEv.nextTurnAllowPass = game.game_type !== '2player' || (
+    ev.nextTurnNum !== TWO_PLAYER_TURNS &&
+    !teamsDone.includes(ev.nextTeam))
+  return fullEv
 }
 
 const calcTeamsDone = (game: Game, boardSpecs: TeamBoardSpec[], events: GameEvent[]): Team[] => {

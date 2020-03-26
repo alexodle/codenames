@@ -69,6 +69,7 @@ export interface GameTurn {
   game_id: number
   turn_num: number
   team: Team
+  allow_pass: boolean // in 2-player, this will be false on last turn OR if the other team is done
   hint_word?: string
   hint_num?: number
   guesses: Guess[]
@@ -140,6 +141,7 @@ export type NextTurnEvent = {
   type: 'nextturn'
   nextTeam: Team
   nextTurnNum: number
+  nextTurnAllowPass: boolean
 }
 
 export type GameOverEvent = {
