@@ -33,48 +33,77 @@ export const processGuess2Player = (game: Game, boardSpecs: TeamBoardSpec[], pla
   } else if (cellSpec.cell_type === 'citizen') {
     const citizenTeam = cell.covered_citizen_team ? 'full' : player.team
     const coverEvent: GameEvent = { type: 'cover', newCover: 'citizen', turnNum: guess.turn_num, row: guess.row, col: guess.col, newCoverCitizenTeam: citizenTeam }
-    const nextEvent: GameEvent = guess.turn_num < TWO_PLAYER_TURNS ?
-      { type: 'nextturn', nextTeam: player.team, nextTurnNum: guess.turn_num + 1 } :
-      { type: 'gameover', turnNum: guess.turn_num }
-    results.push(coverEvent, nextEvent)
+    results.push(coverEvent)
+
+    if (guess.turn_num === TWO_PLAYER_TURNS) {
+      results.push({ type: 'gameover', turnNum: guess.turn_num })
+    } else {
+      const teamsDone = calcTeamsDone(game, boardSpecs, results)
+      const nextTeam = !teamsDone.includes(otherTeam) ? getOtherTeam(game.currentTurn!.team) : game.currentTurn!.team
+      results.push({ type: 'nextturn', nextTeam, nextTurnNum: guess.turn_num + 1 })
+    }
 
   } else {
     results.push({ type: 'cover', newCover: otherTeam, turnNum: guess.turn_num, row: guess.row, col: guess.col })
-    if (isGameOver2Player(game, boardSpecs, results)) {
-      results.push({ type: 'gameover', turnNum: guess.turn_num, winner: '1' })
-    }
 
+    const teamsDone = calcTeamsDone(game, boardSpecs, results)
+    if (teamsDone.length === 2) {
+      results.push({ type: 'gameover', turnNum: guess.turn_num, winner: '1' })
+    } else if (teamsDone.includes(player.team)) {
+      results.push({ type: 'nextturn', nextTeam: getOtherTeam(game.currentTurn!.team), nextTurnNum: guess.turn_num + 1 })
+    }
   }
+
   return results
 }
 
-export const processPass = (game: Game, player: GamePlayer, turnNum: number): GameEvent[] => {
+export const processPass = (game: Game, boardSpecs: TeamBoardSpec[], player: GamePlayer, turnNum: number): GameEvent[] => {
   ensureCorrectTurn(game, player, turnNum)
-  if (turnNum === TWO_PLAYER_TURNS) {
-    throw new InvalidRequestError('Cannot pass on last turn')
+
+  if (game.game_type === '2player') {
+    if (turnNum === TWO_PLAYER_TURNS) {
+      throw new InvalidRequestError('Cannot pass on last turn')
+    }
+
+    const teamsDone = calcTeamsDone(game, boardSpecs, [])
+    if (teamsDone.includes(getOtherTeam(player.team))) {
+      throw new InvalidRequestError('Cannot pass when other team is done')
+    }
   }
+
   return [
     { type: 'pass', turnNum },
     { type: 'nextturn', nextTeam: player.team, nextTurnNum: turnNum + 1 },
   ]
 }
 
-const isGameOver2Player = (game: Game, boardSpecs: TeamBoardSpec[], events: GameEvent[]): boolean => {
+const calcTeamsDone = (game: Game, boardSpecs: TeamBoardSpec[], events: GameEvent[]): Team[] => {
   const newlyCovered = keyBy(events.filter(e => e.type === 'cover') as CellCoverEvent[], getCellKey)
-  for (const spec of boardSpecs) {
-    const uncoveredCell = spec.specCardCells
-      .filter(c => c.cell_type === 'agent')
-      .find(c => {
-        const cover = game.board[getCellIdx(c)].covered
-        const newCover = newlyCovered[getCellKey(c)]?.newCover
-        const covered = (cover && TEAMS.includes(cover as Team)) || (newCover && TEAMS.includes(newCover as Team))
-        return !covered
-      })
-    if (uncoveredCell) {
-      return false
-    }
+
+  // Use the opposite team's spec to determine if the team is done or not
+  const team1Spec = boardSpecs.find(s => s.team === '2')!
+  const team2Spec = boardSpecs.find(s => s.team === '1')!
+
+  const teamsDone: Team[] = []
+  if (specAgentsFullyCovered(game, team1Spec, newlyCovered)) {
+    teamsDone.push('1')
   }
-  return true
+  if (specAgentsFullyCovered(game, team2Spec, newlyCovered)) {
+    teamsDone.push('2')
+  }
+  return teamsDone
+}
+
+const specAgentsFullyCovered = (game: Game, spec: TeamBoardSpec, newlyCovered: { [cellKey: string]: CellCoverEvent }): boolean => {
+  const uncoveredCell = spec.specCardCells
+    .filter(c => c.cell_type === 'agent')
+    .find(c => {
+      const cover = game.board[getCellIdx(c)].covered
+      const newCover = newlyCovered[getCellKey(c)]?.newCover
+      const covered = (cover && TEAMS.includes(cover as Team)) || (newCover && TEAMS.includes(newCover as Team))
+      return !covered
+    })
+  return !uncoveredCell
 }
 
 const ensureCorrectTurn = (game: Game, player: GamePlayer, turnNum: number) => {

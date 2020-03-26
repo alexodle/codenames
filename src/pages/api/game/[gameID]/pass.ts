@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next"
 import { isNumber } from "util"
 import { getGame, getGamePlayers } from "../../../../access/gamemgmt"
-import { processEvents } from "../../../../access/gameplay"
+import { getTeamBoardSpecs, processEvents } from "../../../../access/gameplay"
 import { processPass } from "../../../../game/guess"
 import { PutPassRequest } from "../../../../types/api"
 import { auth } from "../../../../util/auth"
@@ -18,7 +18,7 @@ const putPassAPI = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const gameID = getGameID(req)
 
-  const [player, game, gamePlayers] = await Promise.all([getPlayer(req), getGame(gameID), getGamePlayers(gameID)])
+  const [player, game, teamBoardSpecs, gamePlayers] = await Promise.all([getPlayer(req), getGame(gameID), getTeamBoardSpecs(gameID), getGamePlayers(gameID)])
   if (game.game_type !== '2player') {
     throw new InvalidRequestError('TODO') // TODO
   }
@@ -28,7 +28,7 @@ const putPassAPI = async (req: NextApiRequest, res: NextApiResponse) => {
     throw new InvalidRequestError('Player not in game')
   }
 
-  const events = processPass(game, gamePlayer, body.turnNum)
+  const events = processPass(game, teamBoardSpecs, gamePlayer, body.turnNum)
   await processEvents(gameID, events)
 
   res.status(201).end()
