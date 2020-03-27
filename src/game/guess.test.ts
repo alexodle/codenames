@@ -230,13 +230,14 @@ describe('processGuess2Player', () => {
     expect(events).toStrictEqual(expected)
   })
 
+  // Also allows you to go over the max number of turns
   test('next turn if player guesses last agent', () => {
     const game = create2PlayerGame(`
       AAAAA
       AAA--
       -----
       -----
-      -----`, {})
+      -----`, { turnNum: TWO_PLAYER_TURNS })
     const boardSpec1 = createBoardSpec('1', `
       AAAAA
       AAAAX
@@ -249,16 +250,16 @@ describe('processGuess2Player', () => {
       ZXXXA
       AAAAA
       ZZZZZ`)
-    const events = processGuess2Player(game, [boardSpec1, boardSpec2], game.players[1], { game_id: 1, turn_num: 1, guess_num: 1, row: 1, col: 3 })
+    const events = processGuess2Player(game, [boardSpec1, boardSpec2], game.players[1], { game_id: 1, turn_num: TWO_PLAYER_TURNS, guess_num: 1, row: 1, col: 3 })
     const expected: GameEvent[] = [
-      { type: 'guess', turnNum: 1, guessNum: 1, row: 1, col: 3 },
-      { type: 'cover', newCover: '1', turnNum: 1, row: 1, col: 3 },
-      { type: 'nextturn', nextTurnNum: 2, nextTeam: '2', nextTurnAllowPass: false },
+      { type: 'guess', turnNum: TWO_PLAYER_TURNS, guessNum: 1, row: 1, col: 3 },
+      { type: 'cover', newCover: '1', turnNum: TWO_PLAYER_TURNS, row: 1, col: 3 },
+      { type: 'nextturn', nextTurnNum: TWO_PLAYER_TURNS + 1, nextTeam: '2', nextTurnAllowPass: false },
     ]
     expect(events).toStrictEqual(expected)
   })
 
-  test('next game over for win', () => {
+  test('game over for win', () => {
     const game = create2PlayerGame(`
       -AAAA
       AAAA-
