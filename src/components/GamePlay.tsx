@@ -125,7 +125,7 @@ interface TurnsViewProps {
 }
 const TurnsView: FunctionComponent<TurnsViewProps> = ({ children, turnNum }) => (
   <div className='turns-view'>
-    {range(TWO_PLAYER_TURNS - turnNum + 1, 1).map(n => (
+    {range(TWO_PLAYER_TURNS - turnNum, 1).map(n => (
       <div key={n} className='citizen'><CitizenLabel /></div>
     ))}
     {children}
