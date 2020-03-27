@@ -13,49 +13,122 @@ import { InvalidSessionError } from "../util/errors";
 import { getFetchOpts } from "../util/gipAuth";
 import { ensureResponseOk, sort } from "../util/util";
 import { useThemeContext } from '../components/ThemeContext';
+import game from './api/game';
+import { isNullOrUndefined } from 'util';
 
 const formatDate = (d: Date | string): string => {
   d = new Date(d)
   return d.toLocaleDateString()
 }
 
+interface GameRowProps {
+  myPlayer: Player
+  game: GameInfo
+}
+
+const InProgressGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
+  const currentTurn = game.currentTurn!
+  const myGamePlayer = game.players.find(gp => gp.player_id === myPlayer.id)!
+
+  // TODO: add logic for 4 player
+  const waitingForMyGuess = currentTurn.team !== myGamePlayer.team && !!currentTurn.hint_word
+  const waitingForMyHint = myGamePlayer.player_type === 'codemaster' && currentTurn.team === myGamePlayer.team && !currentTurn.hint_word
+
+  return (
+    <span className='game-state'>
+      {waitingForMyGuess ? 'Waiting on you' : undefined}
+      {waitingForMyHint ? 'Waiting on you' : undefined}
+      <style jsx>
+        {`
+          .game-state {
+            position: absolute;
+            right: 10px;
+            font-weight: bold;
+          }
+        `}
+      </style>
+    </span>
+  )
+}
+
+const CompletedGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
+  const myGamePlayer = game.players.find(gp => gp.player_id === myPlayer.id)!
+  const won =
+    (game.game_type === '2player' && !isNullOrUndefined(game.winning_team)) ||
+    (game.game_type === '4player' && game.winning_team === myGamePlayer.team)
+
+  return (
+    <span className='game-result'>
+      {won ? 'You won!' : 'You lost'}
+      <style jsx>
+        {`
+            position: absolute;
+            right: 10px;
+            font-weight: bold;
+        `}
+      </style>
+    </span>
+  )
+}
+
+const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
+  // TODO: allow delete
+  const renderGameNotStarted = () => undefined
+
+  return (
+    <>
+      <Link href={`/game/${game.id}`}>
+        <a>
+          <span className='game-info game-date'>{formatDate(game.created_on)}</span>
+          <span className='game-info game-nplayers'>{game.players.length} players</span>
+          <span className='game-info game-players'>{sort(game.players.map(p => p.player!.name)).join(', ')}</span>
+          {!game.is_started ? renderGameNotStarted() : undefined}
+          {game.is_started && !game.game_over ? <InProgressGameRow myPlayer={myPlayer} game={game} /> : undefined}
+          {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} /> : undefined}
+        </a>
+      </Link>
+      <style jsx>
+        {`
+          a, a:visited {
+            display: block;
+            color: inherit;
+            text-decoration: none;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+          }
+          .game-info {
+            display: inline-block;
+            width: 120px;
+          }
+          .game-info.game-players {
+            width: 480px;
+          }
+        `}
+      </style>
+    </>
+  )
+}
+
 interface GamesListProps {
+  myPlayer: Player
   games: GameInfo[]
 }
-const GamesList: FunctionComponent<GamesListProps> = ({ games }) => {
+const GamesList: FunctionComponent<GamesListProps> = ({ myPlayer, games }) => {
   const theme = useThemeContext()
   return (
     <ol className='games-list'>
       {!games.length ? <p>None</p> : undefined}
-      {games.map(g => {
-        return (
-          <li key={g.id}>
-            <Link href={`/game/${g.id}`}><a>
-              <span className='game-info'>Game {g.id}</span>
-              <span className='game-info game-date'>{formatDate(g.created_on)}</span>
-              <span className='game-info game-nplayers'>{g.players.length} players</span>
-              <span>{sort(g.players.map(p => p.player!.name)).join(', ')}</span>
-            </a></Link>
-          </li>
-        )
-      })}
+      {games.map(g => <li key={g.id}><GameRow myPlayer={myPlayer} game={g} /></li>)}
       <style jsx>
         {`
-          a, a:visited {
-            color: inherit;
-            text-decoration: none;
-          }
-          .game-info {
-            display: inline-block;
-            width: 150px;
-          }
           .games-list {
             list-style: none;
             padding: 0;
             margin: 0;
           }
           li {
-            padding: 10px;
+            padding: 0;
           }
         `}
       </style>
@@ -118,11 +191,11 @@ const DashPageContents: FunctionComponent = () => {
           {myGamesState.data ? (
             <>
               <h3>Active</h3>
-              <GamesList games={myGamesState.data.activeGames} />
+              <GamesList myPlayer={player!} games={myGamesState.data.activeGames} />
               <h3>Unstarted</h3>
-              <GamesList games={myGamesState.data.unstartedGames} />
+              <GamesList myPlayer={player!} games={myGamesState.data.unstartedGames} />
               <h3>Completed</h3>
-              <GamesList games={myGamesState.data.completedGames} />
+              <GamesList myPlayer={player!} games={myGamesState.data.completedGames} />
             </>
           ) : undefined}
         </>

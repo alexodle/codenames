@@ -5,6 +5,7 @@ import { COLS, ROWS } from "../util/constants"
 import { InvalidRequestError, NotFoundError } from "../util/errors"
 import { playersByPosition, keyBy, groupBy } from "../util/util"
 import { ensureUpdated } from "./util"
+import { isNullOrUndefined } from "util"
 
 export const createGame = async (player: Player): Promise<number> => {
   let gameID: number | undefined = undefined
@@ -18,48 +19,33 @@ export const createGame = async (player: Player): Promise<number> => {
 }
 
 export const getGameInfosByPlayer = async (playerID: number, gameState: 'unstarted' | 'active' | 'completed', limit: number) => {
-  const result = await query<GameInfo>(`
-    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over
-    FROM game
-    WHERE
-      created_by_player_id = $1 AND
-      ${gameState === 'unstarted' ? 'game_over = false AND game_type IS NULL' : ''}
-      ${gameState === 'active' ? 'game_over = false AND game_type IS NOT NULL' : ''}
-      ${gameState === 'completed' ? 'game_over = true' : ''}
-    ORDER BY created_on DESC
-    LIMIT $2;
-    `, [playerID, limit])
-  result.rows.forEach(r => { r.is_started = !!r.game_type })
-
-  return await attachGamePlayersToGames(result.rows)
+  return await getGameInfosInternal(`
+    created_by_player_id = $1 AND
+    ${gameState === 'unstarted' ? 'game_over = false AND game_type IS NULL' : ''}
+    ${gameState === 'active' ? 'game_over = false AND game_type IS NOT NULL' : ''}
+    ${gameState === 'completed' ? 'game_over = true' : ''}
+    `, [playerID], limit)
 }
 
 export const getGameInfo = async (gameID: number): Promise<GameInfo> => {
-  const result = await query<GameInfo>(`
-    SELECT id, created_on, created_by_player_id, current_turn_num, game_type, winning_team, game_over
-    FROM game
-    WHERE id = $1
-    LIMIT 1;`, [gameID])
-  if (!result.rows.length) {
+  const gameInfos = await getGameInfosInternal(`id = $1`, [gameID], 1)
+  if (!gameInfos.length) {
     throw new NotFoundError(`game not found: ${gameID}`)
   }
-
-  const game = result.rows[0]
-  game.is_started = !!game.game_type
-
-  await attachGamePlayersToGames([game])
-  return game
+  return gameInfos[0]
 }
 
 export const getGame = async (gameID: number): Promise<Game> => {
   const game = await getGameInfo(gameID) as Game
 
-  const [board, currentTurn] = await Promise.all([
+  const [board, guesses] = await Promise.all([
     getGameBoard(gameID),
-    game.is_started ? getTurn(gameID, game.current_turn_num!) : undefined])
+    game.is_started ? getGuesses(gameID, game.current_turn_num!) : undefined])
 
   game.board = board
-  game.currentTurn = currentTurn
+  if (!isNullOrUndefined(guesses)) {
+    game.currentTurn!.guesses = guesses
+  }
 
   return game
 }
@@ -133,20 +119,21 @@ export const startGame = async (gameID: number) => {
   query(`NOTIFY gameChange, '${gameID}';`, [])
 }
 
-const addPlayerToGameImpl = async (gameID: number, playerID: number, team: Team, playerType: PlayerType, client: Client) => {
-  // TODO: ensure game hasn't started yet
-  client.query(`DELETE FROM game_player WHERE game_id = $1 AND player_id = $2;`, [gameID, playerID])
-  if (playerType === 'codemaster') {
-    client.query(`DELETE FROM game_player WHERE game_id = $1 AND team = $2 AND player_type = 'codemaster';`, [gameID, team])
-  }
-  client.query(`INSERT INTO game_player(game_id, player_id, team, player_type) VALUES($1, $2, $3, $4);`, [gameID, playerID, team, playerType])
-}
-
 export const addPlayerToGame = async (gameID: number, playerID: number, team: Team, playerType: PlayerType) => {
   await withTransaction(async client => {
     await addPlayerToGameImpl(gameID, playerID, team, playerType, client)
   })
   query(`NOTIFY gameChange, '${gameID}';`, [])
+}
+
+export const getGuesses = async (gameID: number, turnNum: number): Promise<Guess[]> => {
+  const result = await query<Guess>(`
+    SELECT game_id, turn_num, guess_num, row, col
+    FROM game_turn_guesses
+    WHERE game_id = $1 AND turn_num = $2
+    ORDER BY guess_num ASC;
+    `, [gameID, turnNum])
+  return result.rows
 }
 
 export const getTurn = async (gameID: number, turnNum: number): Promise<GameTurn> => {
@@ -158,15 +145,9 @@ export const getTurn = async (gameID: number, turnNum: number): Promise<GameTurn
   if (!result.rows.length) {
     throw new NotFoundError(`Current turn not found for gameID:${gameID}, turnNum:${turnNum}`)
   }
-  const turn = result.rows[0]
 
-  const guessesResult = await query<Guess>(`
-    SELECT game_id, turn_num, guess_num, row, col
-    FROM game_turn_guesses
-    WHERE game_id = $1 AND turn_num = $2
-    ORDER BY guess_num ASC;
-    `, [gameID, turnNum])
-  turn.guesses = guessesResult.rows
+  const turn = result.rows[0]
+  turn.guesses = await getGuesses(gameID, turnNum)
 
   return result.rows[0]
 }
@@ -181,6 +162,55 @@ export const getGameBoard = async (gameID: number): Promise<GameBoardCell[]> => 
   return result.rows
 }
 
+const getGameInfosInternal = async (criteria: string, params: any[], limit: number): Promise<GameInfo[]> => {
+  const result = await query<GameInfo & { game_turn_team: Team, game_turn_hint_word?: string, game_turn_hint_num?: number, game_turn_allow_pass: boolean }>(`
+    SELECT
+      id,
+      created_on,
+      created_by_player_id,
+      current_turn_num,
+      game_type,
+      winning_team,
+      game_over,
+      gt.team game_turn_team,
+      gt.hint_word game_turn_hint_word,
+      gt.hint_num game_turn_hint_num,
+      gt.allow_pass game_turn_allow_pass
+    FROM game
+    LEFT JOIN game_turn gt ON gt.game_id = id AND gt.turn_num = current_turn_num
+    WHERE
+      ${criteria}
+    ORDER BY created_on DESC
+    LIMIT ${limit};
+    `, params)
+  result.rows.forEach(r => {
+    r.is_started = !!r.game_type
+    if (!isNullOrUndefined(r.current_turn_num)) {
+      r.currentTurn = {
+        game_id: r.id,
+        turn_num: r.current_turn_num,
+        team: r.game_turn_team,
+        hint_num: r.game_turn_hint_num,
+        allow_pass: r.game_turn_allow_pass,
+      }
+    }
+    delete r.current_turn_num
+    delete r.game_turn_team
+    delete r.game_turn_hint_num
+    delete r.game_turn_allow_pass
+  })
+  return await attachGamePlayersToGames(result.rows)
+}
+
+const addPlayerToGameImpl = async (gameID: number, playerID: number, team: Team, playerType: PlayerType, client: Client) => {
+  // TODO: ensure game hasn't started yet
+  client.query(`DELETE FROM game_player WHERE game_id = $1 AND player_id = $2;`, [gameID, playerID])
+  if (playerType === 'codemaster') {
+    client.query(`DELETE FROM game_player WHERE game_id = $1 AND team = $2 AND player_type = 'codemaster';`, [gameID, team])
+  }
+  client.query(`INSERT INTO game_player(game_id, player_id, team, player_type) VALUES($1, $2, $3, $4);`, [gameID, playerID, team, playerType])
+}
+
 const attachGamePlayersToGames = async (games: GameInfo[]): Promise<GameInfo[]> => {
   const gameIDs = games.map(g => g.id)
   const gamePlayerResult = await query<GamePlayer & { player_name: string, player_sub: string }>(`
@@ -191,6 +221,8 @@ const attachGamePlayersToGames = async (games: GameInfo[]): Promise<GameInfo[]> 
     `, [gameIDs])
   gamePlayerResult.rows.forEach(gp => {
     gp.player = { id: gp.player_id, name: gp.player_name, sub: gp.player_sub }
+    delete gp.player_name
+    delete gp.player_sub
   })
 
   const gamePlayersByGameID = groupBy(gamePlayerResult.rows, gp => gp.game_id.toString())

@@ -34,6 +34,7 @@ export interface GameInfo {
   winning_team?: Team
   game_over: boolean
   players: GamePlayer[]
+  currentTurn?: Omit<GameTurn, 'guesses'>
 }
 
 export interface Game extends GameInfo {
