@@ -3,18 +3,17 @@ import { NextPage, NextPageContext } from "next";
 import Link from 'next/link';
 import { useRouter } from "next/router";
 import { FunctionComponent, SyntheticEvent, useEffect } from "react";
+import { isNullOrUndefined } from 'util';
 import { PrimaryButton } from "../components/form/Button";
 import { Layout } from "../components/Layout";
 import { PlayerContextProvider, usePlayerContext } from "../components/PlayerContext";
+import { useThemeContext } from '../components/ThemeContext';
 import { GetMeResult, GetMyGamesResult, PostGameResult } from "../types/api";
-import { Player, GameInfo } from "../types/model";
+import { GameInfo, Player } from "../types/model";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { InvalidSessionError } from "../util/errors";
 import { getFetchOpts } from "../util/gipAuth";
 import { ensureResponseOk, sort } from "../util/util";
-import { useThemeContext } from '../components/ThemeContext';
-import game from './api/game';
-import { isNullOrUndefined } from 'util';
 
 const formatDate = (d: Date | string): string => {
   d = new Date(d)

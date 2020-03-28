@@ -191,12 +191,13 @@ const getGameInfosInternal = async (criteria: string, params: any[], limit: numb
         turn_num: r.current_turn_num,
         team: r.game_turn_team,
         hint_num: r.game_turn_hint_num,
+        hint_word: r.game_turn_hint_word,
         allow_pass: r.game_turn_allow_pass,
       }
     }
-    delete r.current_turn_num
     delete r.game_turn_team
     delete r.game_turn_hint_num
+    delete r.game_turn_hint_word
     delete r.game_turn_allow_pass
   })
   return await attachGamePlayersToGames(result.rows)

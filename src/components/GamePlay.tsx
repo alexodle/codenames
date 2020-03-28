@@ -1,15 +1,18 @@
+import Head from "next/head";
 import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { GetGamePlayerViewRequest, PutGuessRequest, PutHintRequest, PutPassRequest } from "../types/api";
-import { GameBoardCell, GameTurn, Player, Team } from "../types/model";
-import { TWO_PLAYER_TURNS } from "../util/constants";
+import { GameBoardCell, GamePlayer, GameTurn, Player, Team } from "../types/model";
+import { PAGE_TITLE, TWO_PLAYER_TURNS } from "../util/constants";
 import { createDataFetcher, createDataSender, useDataFetcher } from "../util/dataFetcher";
 import { isValidHintQuick, range } from "../util/util";
 import { Board } from "./Board";
 import { CitizenLabel } from "./CardLabel";
 import { Input, Label, Option, PrimaryButton, Select } from "./form";
 import { useGameContext } from "./GameContext";
+import { useInterval } from "./useInterval";
 
 const HINT_NUM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => n.toString())
+const HEADER_PREFIX_INTERVAL = 1 * 1000
 
 interface CodeMasterHintInputViewProps { }
 const CodeMasterHintInputView: FunctionComponent<CodeMasterHintInputViewProps> = () => {
@@ -184,6 +187,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
   return (
     <div>
+      <IntervalHeader myGamePlayer={myGamePlayer} currentTurn={currentTurn} />
       {game.game_over ? <GameOverView winningTeam={game.winning_team} /> : undefined}
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
         <Board myGamePlayer={myGamePlayer} specCardCells={specCardCells} isGuessing={isGuessing} onCellClick={onCellClick} />
@@ -218,4 +222,39 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
       </style>
     </div >
   )
+}
+
+interface IntervalHeaderProps {
+  myGamePlayer: GamePlayer
+  currentTurn: GameTurn
+}
+const IntervalHeader: FunctionComponent<IntervalHeaderProps> = ({ myGamePlayer, currentTurn }) => {
+  const titlePrefix = useTitleInterval(myGamePlayer, currentTurn)
+  return (
+    <Head key='gameplay'>
+      <title>{titlePrefix}{PAGE_TITLE}</title>
+    </Head>
+  )
+}
+
+const useTitleInterval = (myGamePlayer: GamePlayer, currentTurn: GameTurn): string | undefined => {
+  const [headTitlePrefix, setHeadTitlePrefix] = useState<string | undefined>(undefined)
+
+  // TODO: add logic for 4 player
+  const waitingForMyGuess = currentTurn.team !== myGamePlayer.team && !!currentTurn.hint_word
+  const waitingForMyHint = myGamePlayer.player_type === 'codemaster' && currentTurn.team === myGamePlayer.team && !currentTurn.hint_word
+
+  const interval = waitingForMyGuess || waitingForMyHint ? HEADER_PREFIX_INTERVAL : undefined
+
+  useEffect(() => {
+    if (!interval) {
+      setHeadTitlePrefix(undefined)
+    }
+  }, [interval])
+
+  useInterval(() => {
+    setHeadTitlePrefix(prefix => prefix ? undefined : '[YOUR TURN] ')
+  }, interval)
+
+  return headTitlePrefix
 }

@@ -3,6 +3,7 @@ import { FunctionComponent, useEffect, useState } from 'react';
 import { ThemeContextProvider } from '../components/ThemeContext';
 import { Player } from '../types/model';
 import Link from "next/link";
+import { PAGE_TITLE } from '../util/constants';
 
 // const [FONT_SIZE, FONT, FONT_URL] = ['15px', `'IBM Plex Sans', sans-serif`, 'https://fonts.googleapis.com/css?family=IBM+Plex+Sans&display=swap']
 const [FONT_SIZE, FONT, FONT_URL] = ['15px', 'Verdana, Geneva, sans-serif', undefined]
@@ -48,7 +49,7 @@ export const Layout: FunctionComponent<LayoutProps> = ({ children, myPlayer }) =
   return (
     <ThemeContextProvider>
       <Head key="layout">
-        <title>Codenames with friends</title>
+        <title>{PAGE_TITLE}</title>
         {FONT_URL ? <link rel="stylesheet" href={FONT_URL} /> : undefined}
       </Head>
       <div className='container'>
