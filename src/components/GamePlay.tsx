@@ -229,15 +229,6 @@ interface IntervalHeaderProps {
   currentTurn: GameTurn
 }
 const IntervalHeader: FunctionComponent<IntervalHeaderProps> = ({ myGamePlayer, currentTurn }) => {
-  const titlePrefix = useTitleInterval(myGamePlayer, currentTurn)
-  return (
-    <Head key='gameplay'>
-      <title>{titlePrefix}{PAGE_TITLE}</title>
-    </Head>
-  )
-}
-
-const useTitleInterval = (myGamePlayer: GamePlayer, currentTurn: GameTurn): string | undefined => {
   const [headTitlePrefix, setHeadTitlePrefix] = useState<string | undefined>(undefined)
 
   // TODO: add logic for 4 player
@@ -256,5 +247,9 @@ const useTitleInterval = (myGamePlayer: GamePlayer, currentTurn: GameTurn): stri
     setHeadTitlePrefix(prefix => prefix ? undefined : '[YOUR TURN] ')
   }, interval)
 
-  return headTitlePrefix
+  useEffect(() => {
+    window.document.title = `${headTitlePrefix || ''}${PAGE_TITLE}`
+  }, [headTitlePrefix])
+
+  return <></>
 }
