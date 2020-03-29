@@ -18,7 +18,7 @@ export function createDataFetcher<R>(fullURL: string): DataFetcher<R> {
   }
 }
 
-export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT', data: T): DataFetcher<R> {
+export function createDataSender<R, T>(fullURL: string, method: 'POST' | 'PUT' | 'DELETE', data: T): DataFetcher<R> {
   return async (): Promise<R> => {
     const res = await ensureResponseOk(await fetch(fullURL, {
       method,

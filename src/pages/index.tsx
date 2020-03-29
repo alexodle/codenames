@@ -2,9 +2,9 @@ import fetch from 'isomorphic-unfetch';
 import { NextPage, NextPageContext } from "next";
 import Link from 'next/link';
 import { useRouter } from "next/router";
-import { FunctionComponent, SyntheticEvent, useEffect } from "react";
+import { FunctionComponent, SyntheticEvent, useEffect, useState } from "react";
 import { isNullOrUndefined } from 'util';
-import { PrimaryButton } from "../components/form/Button";
+import { PrimaryButton, Button } from "../components/form/Button";
 import { Layout } from "../components/Layout";
 import { PlayerContextProvider, usePlayerContext } from "../components/PlayerContext";
 import { useThemeContext } from '../components/ThemeContext';
@@ -23,6 +23,7 @@ const formatDate = (d: Date | string): string => {
 interface GameRowProps {
   myPlayer: Player
   game: GameInfo
+  onDeleted: (gameID: number) => void
 }
 
 const InProgressGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
@@ -61,33 +62,44 @@ const CompletedGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) =
       {won ? 'You won!' : 'You lost'}
       <style jsx>
         {`
+          span {
             position: absolute;
             right: 10px;
             font-weight: bold;
+          }
         `}
       </style>
     </span>
   )
 }
 
-const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
-  // TODO: allow delete
-  const renderGameNotStarted = () => undefined
+const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game, onDeleted }) => {
+  const onDelete = (ev: SyntheticEvent) => {
+    ev.preventDefault()
+    createDataSender(`${process.env.API_BASE_URL}/api/game/${game.id}`, 'DELETE', {})()
+    onDeleted(game.id)
+  }
 
   return (
-    <>
+    <div className='game-row'>
       <Link href={`/game/${game.id}`}>
         <a>
           <span className='game-info game-date'>{formatDate(game.created_on)}</span>
           <span className='game-info game-nplayers'>{game.players.length} players</span>
           <span className='game-info game-players'>{sort(game.players.map(p => p.player!.name)).join(', ')}</span>
-          {!game.is_started ? renderGameNotStarted() : undefined}
-          {game.is_started && !game.game_over ? <InProgressGameRow myPlayer={myPlayer} game={game} /> : undefined}
-          {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} /> : undefined}
+          {game.is_started && !game.game_over ? <InProgressGameRow myPlayer={myPlayer} game={game} onDeleted={onDeleted} /> : undefined}
+          {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} onDeleted={onDeleted} /> : undefined}
         </a>
       </Link>
+      {!game.is_started ? <span className='delete-btn'><Button small onClick={onDelete}>Delete</Button></span> : undefined}
+
       <style jsx>
         {`
+          .game-row {
+            position: relative;
+            width: 100%;
+            height: 100%;
+          }
           a, a:visited {
             display: block;
             color: inherit;
@@ -103,9 +115,14 @@ const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
           .game-info.game-players {
             width: 480px;
           }
+          .delete-btn {
+            position: absolute;
+            right: 10px;
+            top: 7px;
+          }
         `}
       </style>
-    </>
+    </div>
   )
 }
 
@@ -115,10 +132,20 @@ interface GamesListProps {
 }
 const GamesList: FunctionComponent<GamesListProps> = ({ myPlayer, games }) => {
   const theme = useThemeContext()
+
+  const [deletedGames, setDeletedGames] = useState<number[]>([])
+  const onDeleted = (gameID: number) => {
+    setDeletedGames(state => [...state, gameID])
+  }
+
   return (
     <ol className='games-list'>
       {!games.length ? <p>None</p> : undefined}
-      {games.map(g => <li key={g.id}><GameRow myPlayer={myPlayer} game={g} /></li>)}
+      {games
+        .filter(g => !deletedGames.includes(g.id))
+        .map(g => (
+          <li key={g.id}><GameRow myPlayer={myPlayer} game={g} onDeleted={onDeleted} /></li>
+        ))}
       <style jsx>
         {`
           .games-list {

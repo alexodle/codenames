@@ -18,12 +18,22 @@ export const createGame = async (player: Player): Promise<number> => {
   return gameID!
 }
 
+export const deleteGame = async (gameID: number) => {
+  await ensureUpdated('failed to delete game', await query(`
+    UPDATE game
+    SET deleted = true
+    WHERE id = $1;
+    `, [gameID]))
+}
+
 export const getGameInfosByPlayer = async (playerID: number, gameState: 'unstarted' | 'active' | 'completed', limit: number) => {
   return await getGameInfosInternal(`
-    created_by_player_id = $1 AND
-    ${gameState === 'unstarted' ? 'game_over = false AND game_type IS NULL' : ''}
-    ${gameState === 'active' ? 'game_over = false AND game_type IS NOT NULL' : ''}
-    ${gameState === 'completed' ? 'game_over = true' : ''}
+    id IN (
+      SELECT DISTINCT(game_id) FROM game_player WHERE player_id = $1
+    )
+    ${gameState === 'unstarted' ? 'AND game_over = false AND game_type IS NULL' : ''}
+    ${gameState === 'active' ? 'AND game_over = false AND game_type IS NOT NULL' : ''}
+    ${gameState === 'completed' ? 'AND game_over = true' : ''}
     `, [playerID], limit)
 }
 
@@ -179,7 +189,8 @@ const getGameInfosInternal = async (criteria: string, params: any[], limit: numb
     FROM game
     LEFT JOIN game_turn gt ON gt.game_id = id AND gt.turn_num = current_turn_num
     WHERE
-      ${criteria}
+      ${criteria} AND
+      deleted != true
     ORDER BY created_on DESC
     LIMIT ${limit};
     `, params)
