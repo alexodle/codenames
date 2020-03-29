@@ -23,7 +23,7 @@ const formatDate = (d: Date | string): string => {
 interface GameRowProps {
   myPlayer: Player
   game: GameInfo
-  onDeleted: (gameID: number) => void
+  onDeleted?: (gameID: number) => void
 }
 
 const InProgressGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) => {
@@ -76,8 +76,10 @@ const CompletedGameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game }) =
 const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game, onDeleted }) => {
   const onDelete = (ev: SyntheticEvent) => {
     ev.preventDefault()
-    createDataSender(`${process.env.API_BASE_URL}/api/game/${game.id}`, 'DELETE', {})()
-    onDeleted(game.id)
+    if (onDeleted) {
+      createDataSender(`${process.env.API_BASE_URL}/api/game/${game.id}`, 'DELETE', {})()
+      onDeleted(game.id)
+    }
   }
 
   return (
@@ -87,11 +89,11 @@ const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game, onDeleted })
           <span className='game-info game-date'>{formatDate(game.created_on)}</span>
           <span className='game-info game-nplayers'>{game.players.length} players</span>
           <span className='game-info game-players'>{sort(game.players.map(p => p.player!.name)).join(', ')}</span>
-          {game.is_started && !game.game_over ? <InProgressGameRow myPlayer={myPlayer} game={game} onDeleted={onDeleted} /> : undefined}
-          {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} onDeleted={onDeleted} /> : undefined}
+          {game.is_started && !game.game_over ? <InProgressGameRow myPlayer={myPlayer} game={game} /> : undefined}
+          {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} /> : undefined}
         </a>
       </Link>
-      {!game.is_started ? <span className='delete-btn'><Button small onClick={onDelete}>Delete</Button></span> : undefined}
+      {onDeleted && !game.is_started ? <span className='delete-btn'><Button small onClick={onDelete}>Delete</Button></span> : undefined}
 
       <style jsx>
         {`
