@@ -93,7 +93,7 @@ const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game, onDeleted })
           {game.game_over ? <CompletedGameRow myPlayer={myPlayer} game={game} /> : undefined}
         </a>
       </Link>
-      {onDeleted && !game.is_started ? <span className='delete-btn'><Button small onClick={onDelete}>Delete</Button></span> : undefined}
+      {onDeleted && !game.is_started && game.created_by_player_id === myPlayer.id ? <span className='delete-btn'><Button small onClick={onDelete}>Delete</Button></span> : undefined}
 
       <style jsx>
         {`

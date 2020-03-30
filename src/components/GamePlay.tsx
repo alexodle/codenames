@@ -187,7 +187,7 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 
   return (
     <div>
-      <IntervalHeader myGamePlayer={myGamePlayer} currentTurn={currentTurn} />
+      <IntervalHeader myGamePlayer={myGamePlayer} currentTurn={currentTurn} isGameOver={game.game_over} />
       {game.game_over ? <GameOverView winningTeam={game.winning_team} /> : undefined}
       <div className={`game-container ${game.game_type === '2player' ? 'two-player' : undefined}`}>
         <Board myGamePlayer={myGamePlayer} specCardCells={specCardCells} isGuessing={isGuessing} onCellClick={onCellClick} />
@@ -227,13 +227,14 @@ export const GamePlay: FunctionComponent<GamePlayProps> = ({ myPlayer }) => {
 interface IntervalHeaderProps {
   myGamePlayer: GamePlayer
   currentTurn: GameTurn
+  isGameOver: boolean
 }
-const IntervalHeader: FunctionComponent<IntervalHeaderProps> = ({ myGamePlayer, currentTurn }) => {
+const IntervalHeader: FunctionComponent<IntervalHeaderProps> = ({ myGamePlayer, currentTurn, isGameOver }) => {
   const [headTitlePrefix, setHeadTitlePrefix] = useState<string | undefined>(undefined)
 
   // TODO: add logic for 4 player
-  const waitingForMyGuess = currentTurn.team !== myGamePlayer.team && !!currentTurn.hint_word
-  const waitingForMyHint = myGamePlayer.player_type === 'codemaster' && currentTurn.team === myGamePlayer.team && !currentTurn.hint_word
+  const waitingForMyGuess = !isGameOver && currentTurn.team !== myGamePlayer.team && !!currentTurn.hint_word
+  const waitingForMyHint = !isGameOver && myGamePlayer.player_type === 'codemaster' && currentTurn.team === myGamePlayer.team && !currentTurn.hint_word
 
   const interval = waitingForMyGuess || waitingForMyHint ? HEADER_PREFIX_INTERVAL : undefined
 
