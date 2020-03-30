@@ -92,9 +92,7 @@ export const processPass = (game: Game, boardSpecs: TeamBoardSpec[], player: Gam
 
 const withNextTurnAllowPass = (game: Game, teamsDone: Team[], ev: Omit<NextTurnEvent, 'nextTurnAllowPass'>): NextTurnEvent => {
   const fullEv = ev as NextTurnEvent
-  fullEv.nextTurnAllowPass = game.game_type !== '2player' || (
-    ev.nextTurnNum !== TWO_PLAYER_TURNS &&
-    !teamsDone.includes(ev.nextTeam))
+  fullEv.nextTurnAllowPass = game.game_type !== '2player' || ev.nextTurnNum < TWO_PLAYER_TURNS
   return fullEv
 }
 

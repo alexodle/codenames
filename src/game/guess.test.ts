@@ -225,7 +225,7 @@ describe('processGuess2Player', () => {
     const expected: GameEvent[] = [
       { type: 'guess', turnNum: 2, guessNum: 1, row: 4, col: 4 },
       { type: 'cover', newCover: 'citizen', newCoverCitizenTeam: '1', turnNum: 2, row: 4, col: 4 },
-      { type: 'nextturn', nextTurnNum: 3, nextTeam: '2', nextTurnAllowPass: false },
+      { type: 'nextturn', nextTurnNum: 3, nextTeam: '2', nextTurnAllowPass: true },
     ]
     expect(events).toStrictEqual(expected)
   })
