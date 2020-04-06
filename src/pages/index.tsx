@@ -84,7 +84,7 @@ const GameRow: FunctionComponent<GameRowProps> = ({ myPlayer, game, onDeleted })
 
   return (
     <div className='game-row'>
-      <Link href={`/game/${game.id}`}>
+      <Link href='/game/[gameID]' as={`/game/${game.id}`}>
         <a>
           <span className='game-info game-date'>{formatDate(game.created_on)}</span>
           <span className='game-info game-nplayers'>{game.players.length} players</span>
